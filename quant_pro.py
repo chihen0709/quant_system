@@ -49,7 +49,9 @@ REPORT_DIR = 'reports'
 MODEL_DIR = 'models'
 CONFIG_DIR = 'config'
 #for local database
+###for local database
 ##MY_TW_COVERAGE_PATH = 'YOUR_DATABASE_PATH'
+
 
 
 MACRO_MODEL_PATH = os.path.join(MODEL_DIR, 'macro_rf_model.pkl')
@@ -301,8 +303,11 @@ def run_cmd(cmd, cwd, timeout_sec, step_name):
     except Exception as e: return {'ok': False, 'timeout': False, 'stdout': '', 'stderr': str(e)}
 
 def update_my_tw_coverage(chat_id=None):
+    if not MY_TW_COVERAGE_PATH or not os.path.isdir(MY_TW_COVERAGE_PATH):
+        log("[MY-TW-COVERAGE] path not configured, skip local database update.")
+        return
+
     safe_send_message(chat_id, '🔄 正在同步更新本地資料庫...')
-    if not os.path.isdir(MY_TW_COVERAGE_PATH): return
     run_cmd(['git', 'pull'], MY_TW_COVERAGE_PATH, GIT_PULL_TIMEOUT, 'git pull')
     run_cmd(['python3', 'scripts/update_financials.py'], MY_TW_COVERAGE_PATH, FINANCIAL_UPDATE_TIMEOUT, 'update_financials.py')
     
@@ -315,6 +320,13 @@ def is_us_ticker(ticker):
 # ==========================================
 def get_company_profile(ticker_num, ticker_full=None, yf_info=None):
     is_us = is_us_ticker(ticker_full) if ticker_full else False
+
+    if not MY_TW_COVERAGE_PATH or not os.path.isdir(MY_TW_COVERAGE_PATH):
+    return {
+        'profile': '未設定 My-TW-Coverage，本地公司資料略過',
+        'industry': 'N/A',
+        'raw_text': None
+    }
     
     # 📌 美股邏輯：直接依賴 yfinance 的 info
     if is_us:
