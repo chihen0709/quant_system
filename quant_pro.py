@@ -49,8 +49,7 @@ REPORT_DIR = 'reports'
 MODEL_DIR = 'models'
 CONFIG_DIR = 'config'
 #for local database
-###for local database
-##MY_TW_COVERAGE_PATH = 'YOUR_DATABASE_PATH'
+MY_TW_COVERAGE_PATH = ""
 
 
 
@@ -321,13 +320,6 @@ def is_us_ticker(ticker):
 def get_company_profile(ticker_num, ticker_full=None, yf_info=None):
     is_us = is_us_ticker(ticker_full) if ticker_full else False
 
-    if not MY_TW_COVERAGE_PATH or not os.path.isdir(MY_TW_COVERAGE_PATH):
-    return {
-        'profile': '未設定 My-TW-Coverage，本地公司資料略過',
-        'industry': 'N/A',
-        'raw_text': None
-    }
-    
     # 📌 美股邏輯：直接依賴 yfinance 的 info
     if is_us:
         if yf_info:
@@ -339,15 +331,27 @@ def get_company_profile(ticker_num, ticker_full=None, yf_info=None):
 
     # 📌 台股邏輯：依賴 My-TW-Coverage
     try:
+        if not MY_TW_COVERAGE_PATH or not os.path.isdir(MY_TW_COVERAGE_PATH):
+            return {
+                'profile': '未設定 My-TW-Coverage，本地公司資料略過',
+                'industry': 'N/A',
+                'raw_text': None
+            }
+
         target_file = None
         for root, dirs, files in os.walk(MY_TW_COVERAGE_PATH):
             for file in files:
                 if file.startswith(str(ticker_num)) and file.endswith('.md'):
                     target_file = os.path.join(root, file)
                     break
-            if target_file: break
-        if not target_file: return {'profile': '查無資料', 'industry': 'N/A', 'raw_text': None}
-        with open(target_file, 'r', encoding='utf-8') as f: content = f.read()
+            if target_file:
+                break
+
+        if not target_file:
+            return {'profile': '查無資料', 'industry': 'N/A', 'raw_text': None}
+
+        with open(target_file, 'r', encoding='utf-8') as f:
+            content = f.read()
 
         industry = 'N/A'
         for line in content.splitlines():
@@ -356,40 +360,19 @@ def get_company_profile(ticker_num, ticker_full=None, yf_info=None):
                 industry = s.split('：', 1)[-1].strip() if '：' in s else s.split(':', 1)[-1].strip()
                 industry = clip_text(industry.replace('*', ''), 60)
                 break
+
         desc = None
         for line in content.splitlines():
             s = line.strip()
             if len(s) > 20 and not s.startswith('#') and not s.startswith('|'):
                 desc = clip_text(s, 180)
                 break
+
         safe_desc = (desc or '查無業務描述').replace('*', '').replace('_', '')
         return {'profile': safe_desc, 'industry': industry, 'raw_text': content}
-    except Exception: return {'profile': '讀取失敗', 'industry': 'N/A', 'raw_text': None}
 
-# (省略 Goodinfo 爬蟲函數細節，因為美股用不到，台股維持原樣)
-# ...
-def fetch_goodinfo_data(ticker_num):
-    url_main = f'https://goodinfo.tw/tw/StockDetail.asp?STOCK_ID={ticker_num}'
-    url_chip = f'https://goodinfo.tw/tw/ShowBuySaleChart.asp?STOCK_ID={ticker_num}&CHT_CAT=DATE'
-    main_html, chip_html = "", ""
-    try:
-        with sync_playwright() as p:
-            browser = p.chromium.launch(headless=True)
-            context = browser.new_context(user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64)')
-            page = context.new_page()
-            try: page.goto(url_main, wait_until='domcontentloaded', timeout=15000)
-            except Exception: pass
-            page.wait_for_timeout(2000)
-            try: main_html = page.content()
-            except Exception: pass
-            try: page.goto(url_chip, wait_until='domcontentloaded', timeout=15000)
-            except Exception: pass
-            page.wait_for_timeout(2000)
-            try: chip_html = page.content()
-            except Exception: pass
-            browser.close()
-    except Exception: pass
-    return main_html, chip_html
+    except Exception:
+        return {'profile': '讀取失敗', 'industry': 'N/A', 'raw_text': None}
 
 def parse_financials_from_mytwcoverage(md_text):
     result = {'eps_ttm': None, 'eps_latest_quarter': None, 'single_month_yoy': None, 'single_month_mom': None, 'source': []}
