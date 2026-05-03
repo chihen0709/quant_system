@@ -39,8 +39,8 @@ matplotlib.rcParams['font.sans-serif'] = [
     'PingFang TC', 'SimHei', 'Arial Unicode MS', 'DejaVu Sans'
 ]
 
-TELEGRAM_TOKEN = 'YOUR_TELEGRAM_BOT_TOKEN'
-CHAT_ID = 'YOUR_TELEGRAM_CHAT_ID'
+TELEGRAM_TOKEN = '8778080771:AAHvSIm9yYvOP2CKnVPnfhZLuP5Awmq9nHM'
+CHAT_ID = '7255083299'
 
 TEST_MODE = False
 HOLD_DAYS = 20
@@ -48,7 +48,7 @@ HOLD_DAYS = 20
 REPORT_DIR = 'reports'
 MODEL_DIR = 'models'
 CONFIG_DIR = 'config'
-MY_TW_COVERAGE_PATH = 'YOUR_DATABASE_PATH'
+MY_TW_COVERAGE_PATH = '/home/randal/My-TW-Coverage'
 
 MACRO_MODEL_PATH = os.path.join(MODEL_DIR, 'macro_rf_model.pkl')
 PARAMS_FILE_PATH = os.path.join(CONFIG_DIR, 'best_params.json')
@@ -291,7 +291,19 @@ def normalize_ticker(ticker):
     if ticker.isdigit() and len(ticker) == 4:
         return ticker + '.TW'
     return ticker
+def run_cmd(cmd, cwd, timeout_sec, step_name):
+    try:
+        result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True, timeout=timeout_sec)
+        return {'ok': result.returncode == 0, 'timeout': False, 'stdout': result.stdout, 'stderr': result.stderr}
+    except subprocess.TimeoutExpired as e: return {'ok': False, 'timeout': True, 'stdout': getattr(e, 'stdout', ''), 'stderr': getattr(e, 'stderr', '')}
+    except Exception as e: return {'ok': False, 'timeout': False, 'stdout': '', 'stderr': str(e)}
 
+def update_my_tw_coverage(chat_id=None):
+    safe_send_message(chat_id, '🔄 正在同步更新本地資料庫...')
+    if not os.path.isdir(MY_TW_COVERAGE_PATH): return
+    run_cmd(['git', 'pull'], MY_TW_COVERAGE_PATH, GIT_PULL_TIMEOUT, 'git pull')
+    run_cmd(['python3', 'scripts/update_financials.py'], MY_TW_COVERAGE_PATH, FINANCIAL_UPDATE_TIMEOUT, 'update_financials.py')
+    
 def is_us_ticker(ticker):
     """判斷是否為美股標的 (沒有 .TW 或 .TWO 後綴)"""
     return not ticker.endswith(('.TW', '.TWO'))
