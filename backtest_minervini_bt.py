@@ -5,11 +5,11 @@ import pandas as pd
 import backtrader as bt
 import warnings
 
-# 忽略不必要的警告
+
 warnings.filterwarnings('ignore')
 
 # ==========================================
-# 1. 核心策略：Minervini 趨勢追蹤 + 動態防守
+# 1. Core Mind ：Minervini
 # ==========================================
 class MinerviniStrategy(bt.Strategy):
     # 策略參數，方便未來貝氏最佳化 (GPR+EI) 直接呼叫修改

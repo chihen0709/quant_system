@@ -28,7 +28,7 @@ import yfinance as yf
 import joblib  
 
 # ==========================================
-# ⚙️ 系統設定與路徑
+# system path & setting 
 # ==========================================
 warnings.filterwarnings('ignore')
 
@@ -39,8 +39,8 @@ matplotlib.rcParams['font.sans-serif'] = [
     'PingFang TC', 'SimHei', 'Arial Unicode MS', 'DejaVu Sans'
 ]
 
-TELEGRAM_TOKEN = '8778080771:AAHvSIm9yYvOP2CKnVPnfhZLuP5Awmq9nHM'
-CHAT_ID = '7255083299'
+TELEGRAM_TOKEN = 'YOUR_TELEGRAM_BOT_TOKEN'
+CHAT_ID = 'YOUR_TELEGRAM_CHAT_ID'
 
 TEST_MODE = False
 HOLD_DAYS = 20
@@ -48,7 +48,7 @@ HOLD_DAYS = 20
 REPORT_DIR = 'reports'
 MODEL_DIR = 'models'
 CONFIG_DIR = 'config'
-MY_TW_COVERAGE_PATH = '/home/randal/My-TW-Coverage'
+MY_TW_COVERAGE_PATH = 'YOUR_DATABASE_PATH'
 
 MACRO_MODEL_PATH = os.path.join(MODEL_DIR, 'macro_rf_model.pkl')
 PARAMS_FILE_PATH = os.path.join(CONFIG_DIR, 'best_params.json')
@@ -56,7 +56,7 @@ PARAMS_FILE_PATH = os.path.join(CONFIG_DIR, 'best_params.json')
 GIT_PULL_TIMEOUT = 30
 FINANCIAL_UPDATE_TIMEOUT = 300
 TELEGRAM_RETRY = 2
-SCAN_PROGRESS_STEP = 150
+SCAN_PROGRESS_STEP = 100 
 
 TECHNICAL_PRESCREEN_LIMIT = 20
 FINAL_TOP_N = 10
@@ -71,7 +71,7 @@ os.makedirs(CONFIG_DIR, exist_ok=True)
 bot = telebot.TeleBot(TELEGRAM_TOKEN) if TELEGRAM_TOKEN and TELEGRAM_TOKEN != '您的_BOT_TOKEN_貼在這裡' else None
 
 # ==========================================
-# 🧰 Telegram 智慧容錯發送工具
+#  Telegram sender 
 # ==========================================
 def safe_send_message(chat_id, text, parse_mode=None):
     if not bot or not chat_id: return False
@@ -108,7 +108,7 @@ def safe_reply_to(message, text, parse_mode=None):
     except Exception: return False
 
 # ==========================================
-# 🧠 模組串接：載入最佳化參數
+# Module concentration
 # ==========================================
 def load_best_params():
     default_params = {'hard_stop': 0.08, 'ma_period': 20}
@@ -121,11 +121,11 @@ def load_best_params():
 SYS_PARAMS = load_best_params()
 
 # ==========================================
-# 🧰 大盤監測器 (隨機森林 + 產出儀表板)
+# Monitor
 # ==========================================
-def check_market_status():
-    log('[MARKET] 正在評估大盤系統風險...')
-    if os.path.exists(MACRO_MODEL_PATH):
+def check_market_status(region='TW'):
+    log(f'[MARKET] 正在評估 {region} 大盤系統風險...')
+    if region == 'TW' and os.path.exists(MACRO_MODEL_PATH):
         try:
             rf_model = joblib.load(MACRO_MODEL_PATH)
             mock_today_data = pd.DataFrame([[5000, 110, 2, 1000]], columns=['Foreign_Fut', 'PCR_Ratio', 'Retail_Sentiment', 'Top_10_Traders'])
@@ -135,7 +135,9 @@ def check_market_status():
         except Exception as e: log(f"[MARKET-WARN] 載入 RF 模型失敗: {e}")
 
     try:
-        df = yf.download('^TWII', period='6mo', progress=False, auto_adjust=True)
+        # 美股看 S&P 500 (^GSPC)，台股看 ^TWII
+        index_ticker = '^TWII' if region == 'TW' else '^GSPC'
+        df = yf.download(index_ticker, period='6mo', progress=False, auto_adjust=True)
         if df.empty: return 'offensive', 0.1
         if isinstance(df.columns, pd.MultiIndex): df.columns = df.columns.droplevel(1)
         df['MA20'] = ta.trend.sma_indicator(df['Close'], 20)
@@ -147,9 +149,10 @@ def check_market_status():
         log_exception('[MARKET-ERROR]', e)
         return 'offensive', 0.1
 
-def create_macro_dashboard_image(market_mode, macro_score, output_path):
+def create_macro_dashboard_image(market_mode, macro_score, output_path, region='TW'):
     mode_text = "🟢 多方輪動 (Offensive)" if market_mode == 'offensive' else "🔴 崩盤避險 (Defensive)"
     mode_color = "#16a34a" if market_mode == 'offensive' else "#dc2626"
+    title_text = "台股籌碼四維趨勢報告" if region == 'TW' else "美股市場廣度趨勢報告"
     
     html_content = f"""
     <!DOCTYPE html>
@@ -178,7 +181,7 @@ def create_macro_dashboard_image(market_mode, macro_score, output_path):
         <div class="dashboard" id="capture-area">
             <div class="header">
                 <div>
-                    <h1 class="title">📊 台股籌碼四維趨勢報告</h1>
+                    <h1 class="title">📊 {title_text}</h1>
                     <div class="subtitle">AI 隨機森林預測引擎 | 產生時間: {now_str()}</div>
                 </div>
                 <div class="status-badge">
@@ -188,12 +191,10 @@ def create_macro_dashboard_image(market_mode, macro_score, output_path):
             <div class="content-grid">
                 <div>
                     <table>
-                        <tr><th>日期</th><th>外資期貨(口)</th><th>選擇權 PCR</th><th>散戶多空比</th><th>四大特法</th><th>四維分數</th></tr>
-                        <tr><td>今日</td><td class="pos">+2,450</td><td class="pos">110.5%</td><td class="pos">-4.2%</td><td class="neg">-1,200</td><td style="font-weight:bold; color:{mode_color}">{macro_score:.2f}</td></tr>
-                        <tr><td>T-1</td><td class="neg">-1,500</td><td>105.2%</td><td class="neg">+2.1%</td><td class="neg">-3,400</td><td>-0.12</td></tr>
-                        <tr><td>T-2</td><td class="neg">-4,200</td><td class="neg">95.4%</td><td class="neg">+5.8%</td><td class="neg">-5,100</td><td class="neg">-0.45</td></tr>
-                        <tr><td>T-3</td><td class="neg">-3,100</td><td class="neg">98.1%</td><td class="pos">-1.2%</td><td class="pos">+1,500</td><td>-0.20</td></tr>
-                        <tr><td>T-4</td><td class="pos">+1,200</td><td>102.3%</td><td class="neg">+1.5%</td><td class="pos">+2,800</td><td class="pos">+0.15</td></tr>
+                        <tr><th>日期</th><th>大盤動能</th><th>VIX 恐慌</th><th>散戶多空</th><th>法人現貨</th><th>綜合分數</th></tr>
+                        <tr><td>今日</td><td class="pos">+2.45%</td><td class="pos">14.5</td><td class="pos">偏空</td><td class="neg">觀望</td><td style="font-weight:bold; color:{mode_color}">{macro_score:.2f}</td></tr>
+                        <tr><td>T-1</td><td class="neg">-1.50%</td><td>15.2</td><td class="neg">偏多</td><td class="neg">賣超</td><td>-0.12</td></tr>
+                        <tr><td>T-2</td><td class="neg">-2.20%</td><td class="neg">18.4</td><td class="neg">極多</td><td class="neg">大賣</td><td class="neg">-0.45</td></tr>
                     </table>
                     <div class="chart-container"><canvas id="trendChart"></canvas></div>
                 </div>
@@ -202,9 +203,9 @@ def create_macro_dashboard_image(market_mode, macro_score, output_path):
                         <h3 style="margin-top:0; color:#1f2937;">📝 系統判定與行動指南</h3>
                         <p style="font-size:14px; color:#4b5563; line-height:1.6;">
                             <b>模型解析：</b><br>
-                            根據隨機森林模型，目前籌碼與散戶心理呈現 <b>{mode_text.split(' ')[1]}</b>。<br><br>
+                            根據模型推算，目前廣度與心理指標呈現 <b>{mode_text.split(' ')[1]}</b>。<br><br>
                             <b>自動因應動作：</b><br>
-                            {"已開啟『防守避險引擎』，雷達優先掃描高息低波與美債 ETF，嚴格限縮乖離率。" if market_mode == 'defensive' else "處於『攻擊引擎』，資金偏多操作，雷達專注強勢突破與動能發散股。"}
+                            {"已開啟『防守避險引擎』，雷達優先掃描避險 ETF (如美債、反向或低波)，嚴格限縮乖離率。" if market_mode == 'defensive' else "處於『攻擊引擎』，資金偏多操作，雷達專注強勢突破與動能發散股。"}
                         </p>
                     </div>
                     <div style="height: 220px; width: 100%; margin-top: 20px;"><canvas id="radarChart"></canvas></div>
@@ -216,10 +217,10 @@ def create_macro_dashboard_image(market_mode, macro_score, output_path):
             new Chart(ctxLine, {{
                 type: 'bar',
                 data: {{
-                    labels: ['T-4', 'T-3', 'T-2', 'T-1', '今日'],
+                    labels: ['T-2', 'T-1', '今日'],
                     datasets: [{{
-                        label: '四維綜合分數',
-                        data: [0.15, -0.20, -0.45, -0.12, {macro_score}],
+                        label: '綜合分數',
+                        data: [-0.45, -0.12, {macro_score}],
                         backgroundColor: ctx => ctx.raw > 0 ? 'rgba(22, 163, 74, 0.5)' : 'rgba(220, 38, 38, 0.5)',
                         borderColor: ctx => ctx.raw > 0 ? 'rgb(22, 163, 74)' : 'rgb(220, 38, 38)',
                         borderWidth: 1
@@ -231,7 +232,7 @@ def create_macro_dashboard_image(market_mode, macro_score, output_path):
             new Chart(ctxRadar, {{
                 type: 'radar',
                 data: {{
-                    labels: ['外資期貨', '選擇權PCR', '散戶心理', '大戶現貨'],
+                    labels: ['廣度', '波動率', '散戶', '大戶'],
                     datasets: [{{ label: '目前位階', data: [60, 55, 30, 45], backgroundColor: '{mode_color}30', borderColor: '{mode_color}', pointBackgroundColor: '{mode_color}' }}]
                 }},
                 options: {{ responsive: true, maintainAspectRatio: false, scales: {{ r: {{ min: 0, max: 100 }} }} }}
@@ -254,11 +255,13 @@ def create_macro_dashboard_image(market_mode, macro_score, output_path):
         log_exception(f'[PLOT-ERROR] 大盤儀表板生成失敗', e)
         return None
 
-def get_defensive_etf_pool():
+def get_defensive_etf_pool(region='TW'):
+    if region == 'US':
+        return ['SPY', 'QQQ', 'TLT', 'IEF', 'GLD', 'SH'] # 標普, 那斯達克, 20年美債, 7-10年美債, 黃金, 標普反向
     return ['0050.TW', '0056.TW', '00713.TW', '00878.TW', '00679B.TWO', '00687B.TWO', '00632R.TW']
 
 # ==========================================
-# 🧰 基礎工具與爬蟲
+# basic tool
 # ==========================================
 def now_str(): return datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 def log(msg): print(f'[{now_str()}] {msg}', flush=True)
@@ -281,24 +284,34 @@ def safe_float(v, default=None):
 def safe_pct_str(v): return 'N/A' if v is None else f'{v:.1f}%'
 def safe_num_str(v, digits=2): return 'N/A' if v is None else f'{v:.{digits}f}'
 def clip_text(text, limit=180): return '' if not text else (str(text).strip() if len(str(text).strip()) <= limit else str(text).strip()[:limit] + '...')
+
 def normalize_ticker(ticker):
     ticker = str(ticker).strip().upper()
-    return ticker + '.TW' if ticker.isdigit() and len(ticker) == 4 else ticker
+    # 如果純數字且長度為4，自動補上 .TW
+    if ticker.isdigit() and len(ticker) == 4:
+        return ticker + '.TW'
+    return ticker
 
-def run_cmd(cmd, cwd, timeout_sec, step_name):
-    try:
-        result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True, timeout=timeout_sec)
-        return {'ok': result.returncode == 0, 'timeout': False, 'stdout': result.stdout, 'stderr': result.stderr}
-    except subprocess.TimeoutExpired as e: return {'ok': False, 'timeout': True, 'stdout': getattr(e, 'stdout', ''), 'stderr': getattr(e, 'stderr', '')}
-    except Exception as e: return {'ok': False, 'timeout': False, 'stdout': '', 'stderr': str(e)}
+def is_us_ticker(ticker):
+    """判斷是否為美股標的 (沒有 .TW 或 .TWO 後綴)"""
+    return not ticker.endswith(('.TW', '.TWO'))
 
-def update_my_tw_coverage(chat_id=None):
-    safe_send_message(chat_id, '🔄 正在同步更新本地資料庫...')
-    if not os.path.isdir(MY_TW_COVERAGE_PATH): return
-    run_cmd(['git', 'pull'], MY_TW_COVERAGE_PATH, GIT_PULL_TIMEOUT, 'git pull')
-    run_cmd(['python3', 'scripts/update_financials.py'], MY_TW_COVERAGE_PATH, FINANCIAL_UPDATE_TIMEOUT, 'update_financials.py')
+# ==========================================
+# data diging 
+# ==========================================
+def get_company_profile(ticker_num, ticker_full=None, yf_info=None):
+    is_us = is_us_ticker(ticker_full) if ticker_full else False
+    
+    # 📌 美股邏輯：直接依賴 yfinance 的 info
+    if is_us:
+        if yf_info:
+            industry = yf_info.get('industry', 'N/A')
+            desc = yf_info.get('longBusinessSummary', '查無美股業務描述')
+            safe_desc = clip_text(desc.replace('*', '').replace('_', ''), 200)
+            return {'profile': safe_desc, 'industry': industry, 'raw_text': None}
+        return {'profile': '無法取得美股資料', 'industry': 'N/A', 'raw_text': None}
 
-def get_company_profile(ticker_num):
+    # 📌 台股邏輯：依賴 My-TW-Coverage
     try:
         target_file = None
         for root, dirs, files in os.walk(MY_TW_COVERAGE_PATH):
@@ -327,23 +340,8 @@ def get_company_profile(ticker_num):
         return {'profile': safe_desc, 'industry': industry, 'raw_text': content}
     except Exception: return {'profile': '讀取失敗', 'industry': 'N/A', 'raw_text': None}
 
-def parse_financials_from_mytwcoverage(md_text):
-    result = {'eps_ttm': None, 'eps_latest_quarter': None, 'single_month_yoy': None, 'single_month_mom': None, 'source': []}
-    if not md_text: return result
-    text = md_text.replace(',', '')
-    patterns = {
-        'eps_ttm': [r'近四季\s*EPS[:：]?\s*([\-]?\d+(?:\.\d+)?)', r'TTM\s*EPS[:：]?\s*([\-]?\d+(?:\.\d+)?)'],
-        'eps_latest_quarter': [r'最新一季\s*EPS[:：]?\s*([\-]?\d+(?:\.\d+)?)', r'單季\s*EPS[:：]?\s*([\-]?\d+(?:\.\d+)?)'],
-        'single_month_yoy': [r'營收年增(?:率)?[:：]?\s*([\-]?\d+(?:\.\d+)?)\s*%', r'YoY[:：]?\s*([\-]?\d+(?:\.\d+)?)\s*%'],
-        'single_month_mom': [r'營收月增(?:率)?[:：]?\s*([\-]?\d+(?:\.\d+)?)\s*%', r'MoM[:：]?\s*([\-]?\d+(?:\.\d+)?)\s*%']
-    }
-    for key, plist in patterns.items():
-        for p in plist:
-            m = re.search(p, text, re.IGNORECASE)
-            if m: result[key] = safe_float(m.group(1)); break
-    if any(v is not None for k, v in result.items() if k != 'source'): result['source'].append('My-TW-Coverage')
-    return result
-
+# (省略 Goodinfo 爬蟲函數細節，因為美股用不到，台股維持原樣)
+# ...
 def fetch_goodinfo_data(ticker_num):
     url_main = f'https://goodinfo.tw/tw/StockDetail.asp?STOCK_ID={ticker_num}'
     url_chip = f'https://goodinfo.tw/tw/ShowBuySaleChart.asp?STOCK_ID={ticker_num}&CHT_CAT=DATE'
@@ -367,6 +365,23 @@ def fetch_goodinfo_data(ticker_num):
     except Exception: pass
     return main_html, chip_html
 
+def parse_financials_from_mytwcoverage(md_text):
+    result = {'eps_ttm': None, 'eps_latest_quarter': None, 'single_month_yoy': None, 'single_month_mom': None, 'source': []}
+    if not md_text: return result
+    text = md_text.replace(',', '')
+    patterns = {
+        'eps_ttm': [r'近四季\s*EPS[:：]?\s*([\-]?\d+(?:\.\d+)?)', r'TTM\s*EPS[:：]?\s*([\-]?\d+(?:\.\d+)?)'],
+        'eps_latest_quarter': [r'最新一季\s*EPS[:：]?\s*([\-]?\d+(?:\.\d+)?)', r'單季\s*EPS[:：]?\s*([\-]?\d+(?:\.\d+)?)'],
+        'single_month_yoy': [r'營收年增(?:率)?[:：]?\s*([\-]?\d+(?:\.\d+)?)\s*%', r'YoY[:：]?\s*([\-]?\d+(?:\.\d+)?)\s*%'],
+        'single_month_mom': [r'營收月增(?:率)?[:：]?\s*([\-]?\d+(?:\.\d+)?)\s*%', r'MoM[:：]?\s*([\-]?\d+(?:\.\d+)?)\s*%']
+    }
+    for key, plist in patterns.items():
+        for p in plist:
+            m = re.search(p, text, re.IGNORECASE)
+            if m: result[key] = safe_float(m.group(1)); break
+    if any(v is not None for k, v in result.items() if k != 'source'): result['source'].append('My-TW-Coverage')
+    return result
+
 def normalize_goodinfo_table(df):
     x = df.copy()
     if isinstance(x.columns, pd.MultiIndex):
@@ -376,7 +391,7 @@ def normalize_goodinfo_table(df):
     x.columns = [str(c).replace('\n', ' ').replace('\r', ' ').strip() for c in x.columns]
     return x
 
-def get_goodinfo_tables(html, ticker_num):
+def get_goodinfo_tables(html):
     tables = []
     try:
         raw = pd.read_html(StringIO(html))
@@ -384,15 +399,13 @@ def get_goodinfo_tables(html, ticker_num):
     except Exception: pass
     return tables
 
-def parse_goodinfo_revenue_from_text(html, ticker_num):
+def parse_goodinfo_revenue_from_text(html):
     text = re.sub(r'\s+', ' ', html.replace(',', ''))
     out = {'single_month_revenue': None, 'single_month_mom': None, 'single_month_yoy': None, 'ytd_revenue': None, 'ytd_yoy': None, 'source': []}
     patterns = {
         'single_month_revenue': [r'3月份單月.*?營收金額.*?(\d+(?:\.\d+)?)', r'單月營收.*?(\d+(?:\.\d+)?)', r'營收金額.*?(\d+(?:\.\d+)?)'],
         'single_month_mom': [r'月增率.*?([\-+]?\d+(?:\.\d+)?)'],
-        'single_month_yoy': [r'年增率.*?([\-+]?\d+(?:\.\d+)?)'],
-        'ytd_revenue': [r'1\-3月累計.*?(\d+(?:\.\d+)?)', r'累計.*?營收.*?(\d+(?:\.\d+)?)'],
-        'ytd_yoy': [r'1\-3月累計.*?年增率.*?([\-+]?\d+(?:\.\d+)?)', r'累計.*?年增率.*?([\-+]?\d+(?:\.\d+)?)']
+        'single_month_yoy': [r'年增率.*?([\-+]?\d+(?:\.\d+)?)']
     }
     for key, plist in patterns.items():
         for p in plist:
@@ -401,7 +414,7 @@ def parse_goodinfo_revenue_from_text(html, ticker_num):
     if any(v is not None for k, v in out.items() if k != 'source'): out['source'].append('Goodinfo-Text')
     return out
 
-def parse_goodinfo_revenue_table(tables, ticker_num):
+def parse_goodinfo_revenue_table(tables):
     result = {'single_month_revenue': None, 'single_month_mom': None, 'single_month_yoy': None, 'ytd_revenue': None, 'ytd_yoy': None, 'source': []}
     for df in tables:
         cols = [str(c).replace(' ', '').replace('\n', '') for c in df.columns]
@@ -410,19 +423,15 @@ def parse_goodinfo_revenue_table(tables, ticker_num):
         try:
             work = df.copy().dropna(how='all')
             for ridx, row in work.iterrows():
-                rev_col = mom_col = yoy_col = ytd_rev_col = ytd_yoy_col = None
+                rev_col = mom_col = yoy_col = None
                 for c in work.columns:
                     cs = str(c).replace(' ', '').replace('\n', '')
                     if rev_col is None and ('單月營收' in cs or '營收(億)' in cs or '月營收' in cs) and '增' not in cs and '累計' not in cs: rev_col = c
                     if mom_col is None and ('月增' in cs or 'MoM' in cs or 'M/M' in cs) and '累計' not in cs: mom_col = c
                     if yoy_col is None and ('年增' in cs or 'YoY' in cs or 'Y/Y' in cs) and '累計' not in cs: yoy_col = c
-                    if ytd_rev_col is None and '累計' in cs and '營收' in cs and '增' not in cs: ytd_rev_col = c
-                    if ytd_yoy_col is None and '累計' in cs and '年增' in cs: ytd_yoy_col = c
-
                 single_rev = safe_float(row.get(rev_col))
                 single_mom = safe_float(row.get(mom_col))
                 single_yoy = safe_float(row.get(yoy_col))
-                
                 if any(v is not None for v in [single_rev, single_mom, single_yoy]):
                     result.update({'single_month_revenue': single_rev, 'single_month_mom': single_mom, 'single_month_yoy': single_yoy})
                     result['source'].append('Goodinfo-Table')
@@ -430,7 +439,7 @@ def parse_goodinfo_revenue_table(tables, ticker_num):
         except Exception: pass
     return result
 
-def parse_goodinfo_eps_table(tables, ticker_num):
+def parse_goodinfo_eps_table(tables):
     result = {'eps_latest_quarter': None, 'eps_ttm': None, 'eps_quarters': [], 'source': []}
     for df in tables:
         cols = [str(c).replace(' ', '').replace('\n', '') for c in df.columns]
@@ -444,13 +453,11 @@ def parse_goodinfo_eps_table(tables, ticker_num):
                 cs = str(c).replace(' ', '').replace('\n', '')
                 if eps_col is None and ('EPS' in cs or '每股盈餘' in cs) and '成長' not in cs and '平均' not in cs: eps_col = c
             if eps_col is None: continue
-
             vals = []
             for _, row in work.iterrows():
                 v = safe_float(row[eps_col])
                 if v is not None: vals.append(v)
                 if len(vals) >= 4: break
-
             if vals:
                 result['eps_latest_quarter'] = vals[0]
                 result['eps_quarters'] = vals
@@ -460,7 +467,7 @@ def parse_goodinfo_eps_table(tables, ticker_num):
         except Exception: pass
     return result
 
-def parse_goodinfo_chip_table(tables, ticker_num):
+def parse_goodinfo_chip_table(tables):
     result = {
         'chips_summary': '近期法人動向平淡或無明顯建倉',
         'foreign_2d': 0, 'foreign_3d': 0, 'foreign_5d': 0, 'foreign_10d': 0,
@@ -515,16 +522,36 @@ def parse_goodinfo_chip_table(tables, ticker_num):
             if isinstance(result[k], (int, float)) and result[k] == 0: result[k] = None
     return result
 
-def merge_financial_snapshot(ticker_num, md_text, yf_info=None):
+def merge_financial_snapshot(ticker_full, md_text, yf_info=None):
+    is_us = is_us_ticker(ticker_full)
+    
+    # US stock handling 
+    if is_us:
+        teps = safe_float(yf_info.get('trailingEps')) if yf_info else None
+        rg = safe_float(yf_info.get('revenueGrowth')) if yf_info else None
+        if rg is not None: rg = rg * 100
+        return {
+            'single_month_revenue': None, 'single_month_mom': None, 'single_month_yoy': rg,
+            'eps_latest_quarter': None, 'eps_ttm': teps,
+            'chips_summary': '美股無日籌碼結構，依賴技術與動能',
+            'foreign_2d': None, 'foreign_3d': None, 'foreign_5d': None, 'foreign_10d': None,
+            'trust_2d': None, 'trust_3d': None, 'trust_5d': None, 'trust_10d': None,
+            'dealer_2d': None, 'dealer_3d': None, 'dealer_5d': None, 'dealer_10d': None,
+            'total_2d': None, 'total_3d': None, 'total_5d': None, 'total_10d': None,
+            'sources': ['Yahoo Finance']
+        }
+        
+    # TW stock handling
+    ticker_num = ticker_full.split('.')[0]
     from_md = parse_financials_from_mytwcoverage(md_text)
     main_html, chip_html = fetch_goodinfo_data(ticker_num)
-    main_tables = get_goodinfo_tables(main_html, ticker_num) if main_html else []
-    chip_tables = get_goodinfo_tables(chip_html, ticker_num) if chip_html else []
+    main_tables = get_goodinfo_tables(main_html) if main_html else []
+    chip_tables = get_goodinfo_tables(chip_html) if chip_html else []
     
-    rev_text = parse_goodinfo_revenue_from_text(main_html, ticker_num)
-    rev_table = parse_goodinfo_revenue_table(main_tables, ticker_num)
-    eps = parse_goodinfo_eps_table(main_tables, ticker_num)
-    chip = parse_goodinfo_chip_table(chip_tables, ticker_num)
+    rev_text = parse_goodinfo_revenue_from_text(main_html)
+    rev_table = parse_goodinfo_revenue_table(main_tables)
+    eps = parse_goodinfo_eps_table(main_tables)
+    chip = parse_goodinfo_chip_table(chip_tables)
 
     merged = {
         'single_month_revenue': rev_table['single_month_revenue'] or rev_text['single_month_revenue'],
@@ -548,11 +575,22 @@ def merge_financial_snapshot(ticker_num, md_text, yf_info=None):
     return merged
 
 # ==========================================
-# 股票池與技術面評分 
+# Stock pool & judge for tech facce 
 # ==========================================
+def get_us_stock_pool():
+    try:
+        # 爬取 Wikipedia S&P 500 名單
+        table = pd.read_html('https://en.wikipedia.org/wiki/List_of_S%26P_500_companies')
+        df = table[0]
+        return df['Symbol'].tolist()
+    except Exception as e:
+        log_exception("[US-POOL-ERROR]", e)
+        # 失敗的備案：四大科技股與大型股
+        return ['AAPL', 'MSFT', 'NVDA', 'TSLA', 'AMZN', 'GOOGL', 'META', 'AMD', 'BRK-B', 'JPM']
+
 def get_tw_stock_pool(mode='offensive'):
     tickers = []
-    if mode == 'defensive': tickers.extend(get_defensive_etf_pool())
+    if mode == 'defensive': tickers.extend(get_defensive_etf_pool('TW'))
         
     for m in [2, 4]:
         try:
@@ -567,6 +605,7 @@ def get_tw_stock_pool(mode='offensive'):
 def download_stock_df(ticker):
     ticker = normalize_ticker(ticker)
     df = yf.download(ticker, period='5y', progress=False, auto_adjust=True)
+    # 如果是台股抓不到，嘗試切換上市/上櫃後綴
     if df.empty and ticker.endswith('.TW'):
         alt = ticker.replace('.TW', '.TWO')
         df = yf.download(alt, period='5y', progress=False, auto_adjust=True)
@@ -595,7 +634,7 @@ def evaluate_technical(df, market_mode='offensive'):
     c2 = bool(latest['Close'] > latest['Low52W'] * 1.30) if not pd.isna(latest['Low52W']) else False
     c3 = bool(latest['Close'] > latest['High52W'] * 0.75) if not pd.isna(latest['High52W']) else False
     c4 = bool((latest['Close'] >= latest['BBMid']) and (latest['RSI'] > 60) and (latest['MACD_Osc'] > 0)) if not pd.isna(latest['BBMid']) else False
-    c5 = bool(latest['Volume'] > 1_500_000)
+    c5 = bool(latest['Volume'] > 500_000) # 放寬美股與台股的共同標準
     c6 = bool(latest['Close'] > latest['MA5'] > latest['MA20'] > latest['MA60']) if not pd.isna(latest['MA60']) else False
     c7 = bool(latest['Close'] > latest['MA240']) if not pd.isna(latest['MA240']) else False
 
@@ -651,16 +690,26 @@ def evaluate_technical(df, market_mode='offensive'):
         }
     }
 
-def calc_fundamental_score(f):
+def calc_fundamental_score(f, is_us=False):
     score = 0
-    syoy, smom, yyoy, eq, ettm = f.get('single_month_yoy'), f.get('single_month_mom'), f.get('ytd_yoy'), f.get('eps_latest_quarter'), f.get('eps_ttm')
+    syoy = f.get('single_month_yoy')
+    smom = f.get('single_month_mom')
+    eq = f.get('eps_latest_quarter')
+    ettm = f.get('eps_ttm')
+
     if syoy is not None: score += 25 if syoy >= 30 else (18 if syoy >= 15 else (10 if syoy >= 5 else (-10 if syoy < 0 else 0)))
     if smom is not None: score += 16 if smom >= 20 else (10 if smom >= 5 else (5 if smom >= 0 else -6))
     if eq is not None: score += 18 if eq >= 20 else (14 if eq >= 10 else (8 if eq > 0 else -8))
     if ettm is not None: score += 20 if ettm >= 40 else (14 if ettm >= 20 else (8 if ettm > 0 else -8))
+    
+    # loopback 
+    if is_us and score < 30 and (syoy is not None or ettm is not None):
+        score += 20 
+        
     return max(0, min(score, 100))
 
-def calc_chip_score(f):
+def calc_chip_score(f, is_us=False):
+    if is_us: return 0 # 
     score = 0
     t2, t5, t10, f5 = f.get('total_2d'), f.get('total_5d'), f.get('total_10d'), f.get('foreign_5d')
     if t2 is not None: score += 12 if t2 > 0 else -6
@@ -669,11 +718,14 @@ def calc_chip_score(f):
     if f5 is not None: score += 10 if f5 > 0 else -5
     return max(0, min(score, 100))
 
-def final_total_score(t, f, c):
+def final_total_score(t, f, c, is_us=False):
+    if is_us:
+        # 美股沒有籌碼分數，權重分配給技術與基本面 (70% Tech, 30% Fund)
+        return t * 0.70 + f * 0.30
     return t * SYS_PARAMS.get('tech_weight', WEIGHT_TECH) + f * SYS_PARAMS.get('fund_weight', WEIGHT_FUND) + c * SYS_PARAMS.get('chip_weight', WEIGHT_CHIP)
 
 # ==========================================
-# 報告圖表與卡片產生 (恢復最詳細文字版)
+# report & card generator 
 # ==========================================
 def save_exquisite_plot(df, weekly, monthly, ticker, ranking_info):
     fig = plt.figure(figsize=(16, 14))
@@ -718,7 +770,7 @@ def save_exquisite_plot(df, weekly, monthly, ticker, ranking_info):
     plot_k(axes[4], compute_indicators(monthly) if len(monthly) else monthly, f'{ticker} Monthly K')
     plot_m(axes[5], compute_indicators(monthly) if len(monthly) else monthly, 'MACD Monthly')
 
-    fig.suptitle(f'{ticker} Quant Report ({ranking_info["mode"].upper()} MODE) | Total {ranking_info["total_score"]:.1f} | Tech {ranking_info["technical_score"]:.1f} | Fund {ranking_info["fundamental_score"]:.1f} | Chip {ranking_info["chip_score"]:.1f}', fontsize=16, fontweight='bold')
+    fig.suptitle(f'{ticker} Quant Report ({ranking_info["mode"].upper()} MODE) | Total {ranking_info["total_score"]:.1f} | Tech {ranking_info["technical_score"]:.1f} | Fund {ranking_info["fundamental_score"]:.1f}', fontsize=16, fontweight='bold')
     file_path = os.path.join(REPORT_DIR, f'{ticker}_report.png')
     plt.savefig(file_path, dpi=150, bbox_inches='tight')
     plt.close(fig)
@@ -797,13 +849,15 @@ def create_strategy_card_image(ticker, close_price, ma5, ma20, high52w, hard_sto
     except Exception as e: log_exception('[PLOT-ERROR]', e); return None
 
 def build_stock_report(ticker, tech_pack, fin_data, profile_info, rank=None):
-    """🔥 恢復最詳細的 Markdown 打勾報告格式 🔥"""
+    """🔥 動態適應台股與美股的詳細報告 🔥"""
     latest, c, m = tech_pack['latest'], tech_pack['conditions'], tech_pack['metrics']
     mode = tech_pack['mode']
+    is_us = is_us_ticker(ticker)
+    
     tech_score = tech_pack['technical_score']
-    fund_score = calc_fundamental_score(fin_data)
-    chip_score = calc_chip_score(fin_data)
-    total_score = final_total_score(tech_score, fund_score, chip_score)
+    fund_score = calc_fundamental_score(fin_data, is_us)
+    chip_score = calc_chip_score(fin_data, is_us)
+    total_score = final_total_score(tech_score, fund_score, chip_score, is_us)
 
     img_path = save_exquisite_plot(tech_pack['df'], tech_pack['weekly'], tech_pack['monthly'], ticker, {
         'technical_score': tech_score, 'fundamental_score': fund_score, 'chip_score': chip_score, 'total_score': total_score, 'mode': mode
@@ -816,24 +870,33 @@ def build_stock_report(ticker, tech_pack, fin_data, profile_info, rank=None):
     strategy_card_path = os.path.join(REPORT_DIR, f'{ticker}_strategy.png')
     create_strategy_card_image(ticker, close_val, safe_float(m.get("ma5")) or close_val, opt_ma_val, safe_float(latest.get("High52W")) or (close_val * 1.1), opt_hard_stop, strategy_card_path)
 
-    # 開始組裝詳細報告
+    # 報告組裝
     report = ''
     if rank is not None: report += f'🏆 **排名 #{rank}**\n'
-    is_etf = '00' in ticker
+    
+    is_etf = ('00' in ticker) or (ticker in get_defensive_etf_pool('US'))
     mode_text = '🛡️ ETF 防守避風港' if is_etf else ('🔥 攻擊型飆股' if mode == 'offensive' else '🛡️ RS相對強勢')
 
     report += f'📊 **【量化診斷：{ticker}】** ({mode_text})\n'
-    report += f'💰 最新收盤：`{latest["Close"]:.2f}` _(資料日期: {m["latest_date"]})_\n'
-    report += f'🧮 總分：`{total_score:.1f}` | 技術：`{tech_score:.1f}` | 基本：`{fund_score:.1f}` | 籌碼：`{chip_score:.1f}`\n'
+    
+    # 分數呈現 (美股隱藏籌碼分數以避免誤導)
+    if is_us:
+        report += f'💰 最新收盤：`{latest["Close"]:.2f}` _({m["latest_date"]})_\n'
+        report += f'🧮 總分：`{total_score:.1f}` | 技術：`{tech_score:.1f}` | 基本：`{fund_score:.1f}`\n'
+    else:
+        report += f'💰 最新收盤：`{latest["Close"]:.2f}` _(資料日期: {m["latest_date"]})_\n'
+        report += f'🧮 總分：`{total_score:.1f}` | 技術：`{tech_score:.1f}` | 基本：`{fund_score:.1f}` | 籌碼：`{chip_score:.1f}`\n'
+        
     report += '------------------------\n'
-    report += f'🏢 **公司 / 業務摘要：**\n**產業:** {profile_info["industry"]}\n_{profile_info["profile"]}_\n'
+    report += f'🏢 **產業:** {profile_info["industry"]}\n_{profile_info["profile"]}_\n'
     report += '------------------------\n'
 
     if is_etf:
         report += '🛡️ **ETF 防守狀態：**\n'
         report += f'└ 距離 52W 高點：`{safe_pct_str(m["dist_high_pct"])}`\n'
         report += f'└ 站穩年線 (240MA)：{"✅" if c["above_ma240"] else "❌"}\n'
-        report += f'⚠️ **【警告】下單前請確認官網「即時折溢價」，溢價 > 1% 請勿追高！**\n'
+        if not is_us:
+            report += f'⚠️ **【警告】下單前請確認官網「即時折溢價」，溢價 > 1% 請勿追高！**\n'
     else:
         report += '🔍 **技術面分析：**\n'
         report += f'{"✅" if c["trend_stack"] else "❌"} 長天期多頭排列 (價>50>150>200)\n'
@@ -850,24 +913,32 @@ def build_stock_report(ticker, tech_pack, fin_data, profile_info, rank=None):
 
     if not is_etf:
         report += '------------------------\n'
-        report += '💹 **基本面：**\n'
-        report += f'🔸 最新一季 EPS：`{safe_num_str(fin_data.get("eps_latest_quarter"))}`\n🔸 近四季 EPS：`{safe_num_str(fin_data.get("eps_ttm"))}`\n'
-        report += f'🔸 單月營收 Y/Y：`{safe_pct_str(fin_data.get("single_month_yoy"))}`\n🔸 月營收 M/M：`{safe_pct_str(fin_data.get("single_month_mom"))}`\n'
+        if is_us:
+            report += '💹 **基本面 (Yahoo Finance)：**\n'
+            report += f'🔸 近四季 EPS (TTM)：`{safe_num_str(fin_data.get("eps_ttm"))}`\n'
+            report += f'🔸 營收成長 (Y/Y)：`{safe_pct_str(fin_data.get("single_month_yoy"))}`\n'
+        else:
+            report += '💹 **基本面：**\n'
+            report += f'🔸 最新一季 EPS：`{safe_num_str(fin_data.get("eps_latest_quarter"))}`\n🔸 近四季 EPS：`{safe_num_str(fin_data.get("eps_ttm"))}`\n'
+            report += f'🔸 單月營收 Y/Y：`{safe_pct_str(fin_data.get("single_month_yoy"))}`\n🔸 月營收 M/M：`{safe_pct_str(fin_data.get("single_month_mom"))}`\n'
 
     report += '------------------------\n'
-    report += '🏦 **籌碼面：**\n'
-    report += f'🔸 籌碼摘要：`{fin_data.get("chips_summary", "N/A")}`\n'
-    report += f'🔸 外資 2/3/5/10日：`{safe_num_str(fin_data.get("foreign_2d"), 0)}` / `{safe_num_str(fin_data.get("foreign_3d"), 0)}` / `{safe_num_str(fin_data.get("foreign_5d"), 0)}` / `{safe_num_str(fin_data.get("foreign_10d"), 0)}`\n'
-    report += f'🔸 投信 2/3/5/10日：`{safe_num_str(fin_data.get("trust_2d"), 0)}` / `{safe_num_str(fin_data.get("trust_3d"), 0)}` / `{safe_num_str(fin_data.get("trust_5d"), 0)}` / `{safe_num_str(fin_data.get("trust_10d"), 0)}`\n'
-    report += f'🔸 自營 2/3/5/10日：`{safe_num_str(fin_data.get("dealer_2d"), 0)}` / `{safe_num_str(fin_data.get("dealer_3d"), 0)}` / `{safe_num_str(fin_data.get("dealer_5d"), 0)}` / `{safe_num_str(fin_data.get("dealer_10d"), 0)}`\n'
-    report += f'🔸 三大法人合計：`{safe_num_str(fin_data.get("total_2d"), 0)}` / `{safe_num_str(fin_data.get("total_3d"), 0)}` / `{safe_num_str(fin_data.get("total_5d"), 0)}` / `{safe_num_str(fin_data.get("total_10d"), 0)}`\n'
-    srcs = ', '.join(fin_data.get('sources', [])) if fin_data.get('sources') else 'N/A'
-    report += f'🔸 資料來源：`{srcs}`\n'
+    if is_us:
+        report += '🏦 **籌碼面：** 美股無台股三大法人結構，評分已自動調高技術面比重。\n'
+    else:
+        report += '🏦 **籌碼面：**\n'
+        report += f'🔸 籌碼摘要：`{fin_data.get("chips_summary", "N/A")}`\n'
+        report += f'🔸 外資 2/3/5/10日：`{safe_num_str(fin_data.get("foreign_2d"), 0)}` / `{safe_num_str(fin_data.get("foreign_3d"), 0)}` / `{safe_num_str(fin_data.get("foreign_5d"), 0)}` / `{safe_num_str(fin_data.get("foreign_10d"), 0)}`\n'
+        report += f'🔸 投信 2/3/5/10日：`{safe_num_str(fin_data.get("trust_2d"), 0)}` / `{safe_num_str(fin_data.get("trust_3d"), 0)}` / `{safe_num_str(fin_data.get("trust_5d"), 0)}` / `{safe_num_str(fin_data.get("trust_10d"), 0)}`\n'
+        report += f'🔸 自營 2/3/5/10日：`{safe_num_str(fin_data.get("dealer_2d"), 0)}` / `{safe_num_str(fin_data.get("dealer_3d"), 0)}` / `{safe_num_str(fin_data.get("dealer_5d"), 0)}` / `{safe_num_str(fin_data.get("dealer_10d"), 0)}`\n'
+        report += f'🔸 三大法人合計：`{safe_num_str(fin_data.get("total_2d"), 0)}` / `{safe_num_str(fin_data.get("total_3d"), 0)}` / `{safe_num_str(fin_data.get("total_5d"), 0)}` / `{safe_num_str(fin_data.get("total_10d"), 0)}`\n'
+        srcs = ', '.join(fin_data.get('sources', [])) if fin_data.get('sources') else 'N/A'
+        report += f'🔸 資料來源：`{srcs}`\n'
+        
     report += '------------------------\n'
     report += '🎯 **出場雷達 (Minervini 動態策略)：**\n'
 
     bias20 = safe_float(m.get("bias20"))
-
     if bias20 is not None and bias20 >= 18:
         report += f'🚨 **高潮噴出警報**：短線正乖離達 `{bias20:.1f}%`，強烈建議了結部分部位。\n'
     elif bias20 is not None and bias20 >= 10:
@@ -878,7 +949,7 @@ def build_stock_report(ticker, tech_pack, fin_data, profile_info, rank=None):
         report += f'🛡️ **趨勢健康 (Hold)**：股價在防守均線之上且乖離正常。\n👉 **動作**：防守底線設於 `{SYS_PARAMS.get("ma_period", 20)}MA` ({opt_ma_val:.2f})。\n'
 
     report += '\n'
-    if total_score >= 80: report += '🚀 **結論：三方共振，屬高優先級觀察名單。**'
+    if total_score >= 80: report += '🚀 **結論：結構極強，屬高優先級觀察名單。**'
     elif total_score >= 65: report += '🟡 **結論：結構偏強，可列入次高優先級。**'
     else: report += '⚪ **結論：有部分條件符合，尚未達到最強勢組。**'
 
@@ -889,21 +960,30 @@ def analyze_stock(ticker, market_mode='offensive', silent=False):
         ticker, df = download_stock_df(ticker)
         if df.empty or len(df) < 250: return (None, None, None) if silent else ('❌ 找不到資料', None, None)
         tech_pack = evaluate_technical(df, market_mode)
+        
+        is_us = is_us_ticker(ticker)
+        yf_info = yf.Ticker(ticker).info if not TEST_MODE else {}
         ticker_num = ticker.split('.')[0]
-        profile_info = get_company_profile(ticker_num)
-        fin_data = merge_financial_snapshot(ticker_num, profile_info['raw_text'], yf_info=yf.Ticker(ticker).info if not TEST_MODE else {})
+        
+        profile_info = get_company_profile(ticker_num, ticker_full=ticker, yf_info=yf_info)
+        fin_data = merge_financial_snapshot(ticker, profile_info['raw_text'], yf_info=yf_info)
+        
         report, img_path, strategy_img_path = build_stock_report(ticker, tech_pack, fin_data, profile_info)
         return report, img_path, strategy_img_path
     except Exception as e: log_exception(f'[ANALYZE-ERROR] {ticker}', e); return (None, None, None) if silent else (f'❌ 錯誤：{e}', None, None)
 
-def scan_and_rank_market(chat_id=None, requested_by_user=False, market_mode='offensive'):
-    pool = get_tw_stock_pool(market_mode)
-    if TEST_MODE: pool = pool[:20]
+def scan_and_rank_market(chat_id=None, requested_by_user=False, market_mode='offensive', region='TW'):
+    if region == 'TW':
+        pool = get_tw_stock_pool(market_mode)
+    else:
+        pool = get_us_defensive_etf_pool() if market_mode == 'defensive' else get_us_stock_pool()
+        
+    if TEST_MODE: pool = pool[:15]
     prescreen = []
     for idx, ticker in enumerate(pool, start=1):
         try:
             if idx == 1 or idx % SCAN_PROGRESS_STEP == 0:
-                if requested_by_user: safe_send_message(chat_id, f'⏳ 技術初篩：已處理 `{idx}`/`{len(pool)}` 檔...')
+                if requested_by_user: safe_send_message(chat_id, f'⏳ {region} 技術初篩：已處理 `{idx}`/`{len(pool)}` 檔...')
             tkr, df = download_stock_df(ticker)
             if df.empty or len(df) < 250: continue
             tech_pack = evaluate_technical(df, market_mode)
@@ -918,44 +998,48 @@ def scan_and_rank_market(chat_id=None, requested_by_user=False, market_mode='off
     for idx, item in enumerate(prescreen, start=1):
         ticker = item['ticker']
         try:
+            is_us = is_us_ticker(ticker)
+            yf_info = yf.Ticker(ticker).info
             ticker_num = ticker.split('.')[0]
-            profile_info = get_company_profile(ticker_num)
-            fin_data = merge_financial_snapshot(ticker_num, profile_info['raw_text'], yf_info=yf.Ticker(ticker).info)
+            
+            profile_info = get_company_profile(ticker_num, ticker_full=ticker, yf_info=yf_info)
+            fin_data = merge_financial_snapshot(ticker, profile_info['raw_text'], yf_info=yf_info)
+            
             t_score = item['tech_pack']['technical_score']
-            f_score = calc_fundamental_score(fin_data)
-            c_score = calc_chip_score(fin_data)
+            f_score = calc_fundamental_score(fin_data, is_us)
+            c_score = calc_chip_score(fin_data, is_us)
             ranked.append({
                 'ticker': ticker, 'tech_pack': item['tech_pack'], 'fin_data': fin_data, 'profile_info': profile_info,
-                'total_score': final_total_score(t_score, f_score, c_score)
+                'total_score': final_total_score(t_score, f_score, c_score, is_us)
             })
         except Exception: pass
     ranked.sort(key=lambda x: x['total_score'], reverse=True)
     return ranked[:FINAL_TOP_N]
 
 # ==========================================
-# 🤖 主線任務與自動化排程
+# Main task & automatic scheduler 
 # ==========================================
-def run_market_scan_job(chat_id, requested_by_user=False):
-    market_mode, macro_score = check_market_status()
-    mode_msg = "🟢 **大盤偏多：啟動 [攻擊型飆股引擎]**" if market_mode == 'offensive' else "🔴 **大盤避險：啟動 [RS防守避險引擎 + ETF推薦]**"
+def run_market_scan_job(chat_id, requested_by_user=False, region='TW'):
+    market_mode, macro_score = check_market_status(region)
+    mode_msg = "🟢 **多方輪動：啟動 [攻擊型飆股引擎]**" if market_mode == 'offensive' else "🔴 **崩盤風險：啟動 [RS防守避險引擎 + ETF推薦]**"
     
-    safe_send_message(chat_id, f'🔍 **全市場量化雷達啟動中...**\n{mode_msg}', parse_mode='Markdown')
-    macro_img_path = os.path.join(REPORT_DIR, 'macro_dashboard.png')
-    dashboard_generated = create_macro_dashboard_image(market_mode, macro_score, macro_img_path)
+    safe_send_message(chat_id, f'🔍 **{region} 市場量化雷達啟動中...**\n{mode_msg}', parse_mode='Markdown')
+    macro_img_path = os.path.join(REPORT_DIR, f'{region}_macro_dashboard.png')
+    dashboard_generated = create_macro_dashboard_image(market_mode, macro_score, macro_img_path, region)
     if dashboard_generated and os.path.exists(dashboard_generated):
         safe_send_photo(chat_id, dashboard_generated)
         time.sleep(2)
     
-    update_my_tw_coverage(chat_id)
-    top_ranked = scan_and_rank_market(chat_id, requested_by_user, market_mode)
+    if region == 'TW': update_my_tw_coverage(chat_id)
+    top_ranked = scan_and_rank_market(chat_id, requested_by_user, market_mode, region)
     
     if not top_ranked:
         safe_send_message(chat_id, '☕ **掃描完畢**\n本次無達標股票。')
         return
         
-    summary = ['🏆 **今日 Top 10 觀察清單**']
+    summary = [f'🏆 **{region} 今日 Top 10 觀察清單**']
     for i, item in enumerate(top_ranked, start=1):
-        icon = '🛡️' if '00' in item["ticker"] else '🚀'
+        icon = '🛡️' if ('00' in item["ticker"] or item["ticker"] in get_defensive_etf_pool('US')) else '🚀'
         summary.append(f'{i}. {icon} `{item["ticker"]}` | 總分 `{item["total_score"]:.1f}`')
     safe_send_message(chat_id, '\n'.join(summary), parse_mode='Markdown')
     time.sleep(2)
@@ -963,24 +1047,16 @@ def run_market_scan_job(chat_id, requested_by_user=False):
     for i, item in enumerate(top_ranked, start=1):
         try:
             report, img_path, strategy_img_path = build_stock_report(item['ticker'], item['tech_pack'], item['fin_data'], item['profile_info'], rank=i)
-            
-            if img_path and os.path.exists(img_path): 
-                safe_send_photo(chat_id, img_path)
-                time.sleep(1)
-                
-            if strategy_img_path and os.path.exists(strategy_img_path): 
-                safe_send_photo(chat_id, strategy_img_path)
-                time.sleep(1)
-                
+            if img_path and os.path.exists(img_path): safe_send_photo(chat_id, img_path); time.sleep(1)
+            if strategy_img_path and os.path.exists(strategy_img_path): safe_send_photo(chat_id, strategy_img_path); time.sleep(1)
             safe_send_message(chat_id, report, parse_mode='Markdown')
             time.sleep(3.5)
-            
         except Exception as e: log_exception(f"發送 {item['ticker']} 失敗", e)
             
     safe_send_message(chat_id, '✅ **掃描完畢**', parse_mode='Markdown')
 
-def start_scan_thread(chat_id, requested_by_user):
-    threading.Thread(target=run_market_scan_job, args=(chat_id, requested_by_user), daemon=True).start()
+def start_scan_thread(chat_id, requested_by_user, region='TW'):
+    threading.Thread(target=run_market_scan_job, args=(chat_id, requested_by_user, region), daemon=True).start()
 
 def run_weekly_optimization():
     log("🧬 啟動週末回歸測試與策略進化...")
@@ -988,38 +1064,51 @@ def run_weekly_optimization():
     except Exception as e: log(f"啟動最佳化失敗: {e}")
 
 # ==========================================
-# Telegram 監聽
+# Telegram binding & polling 
 # ==========================================
 if bot:
     @bot.message_handler(commands=['start', 'help'])
     def send_welcome(message):
-        safe_reply_to(message, '👋 歡迎使用 **Stock Minervini Pro** (Quant Hedge Fund Edition)\n\n🟢 `/scan`：全市場掃描\n🟢 `/update`：手動同步資料\n🟢 直接輸入股票代碼：單檔分析', parse_mode='Markdown')
+        safe_reply_to(message, '👋 歡迎使用 **Stock Minervini Pro** (跨國對沖基金版)\n\n🟢 `/scan`：台股全市場掃描\n🇺🇸 `/scan_us`：美股 S&P500 掃描\n🟢 `/update`：手動同步台股資料\n🟢 直接輸入代碼 (例如 2330 或 AAPL)：單檔分析', parse_mode='Markdown')
 
     @bot.message_handler(commands=['update'])
     def handle_update(message): update_my_tw_coverage(message.chat.id)
 
     @bot.message_handler(commands=['scan'])
     def handle_scan(message):
-        safe_send_message(message.chat.id, '🚀 啟動掃描並生成大盤四維趨勢圖...', parse_mode='Markdown')
-        start_scan_thread(message.chat.id, True)
+        safe_send_message(message.chat.id, '🚀 啟動台股掃描並生成四維趨勢圖...', parse_mode='Markdown')
+        start_scan_thread(message.chat.id, True, region='TW')
+
+    @bot.message_handler(commands=['scan_us'])
+    def handle_scan_us(message):
+        safe_send_message(message.chat.id, '🇺🇸 啟動美股標普 500 掃描...', parse_mode='Markdown')
+        start_scan_thread(message.chat.id, True, region='US')
 
     @bot.message_handler(func=lambda message: not message.text.startswith('/'))
     def handle_stock(message):
         ticker = message.text.strip().upper().replace('多', '').replace('空', '')
         safe_reply_to(message, f'⏳ 正在產生 `{ticker}` 報告...')
-        current_mode, _ = check_market_status()
+        
+        region = 'US' if is_us_ticker(normalize_ticker(ticker)) else 'TW'
+        current_mode, _ = check_market_status(region)
         report, img_path, strategy_img_path = analyze_stock(ticker, current_mode)
+        
         if img_path and os.path.exists(img_path): safe_send_photo(message.chat.id, img_path)
         if strategy_img_path and os.path.exists(strategy_img_path): safe_send_photo(message.chat.id, strategy_img_path)
         if report: safe_send_message(message.chat.id, report, parse_mode='Markdown')
         else: safe_send_message(message.chat.id, '❌ 找不到資料')
 
 def schedule_loop():
-    schedule.every().day.at('16:30').do(start_scan_thread, chat_id=CHAT_ID, requested_by_user=False)
+    #  16:30 scan TW stock
+    schedule.every().day.at('16:30').do(start_scan_thread, chat_id=CHAT_ID, requested_by_user=False, region='TW')
+    # 凌晨 05:00 (美股收盤後) 掃描美股
+    schedule.every().day.at('05:00').do(start_scan_thread, chat_id=CHAT_ID, requested_by_user=False, region='US')
+    # 週末跑最佳化
     schedule.every().saturday.at("02:00").do(run_weekly_optimization)
+    
     while True: schedule.run_pending(); time.sleep(1)
 
 if __name__ == '__main__':
-    log('🤖 Stock Minervini Pro 啟動中...')
+    log('🤖 Stock Minervini Pro (Cross-Border Edition) 啟動中...')
     threading.Thread(target=schedule_loop, daemon=True).start()
     if bot: bot.infinity_polling(timeout=60, long_polling_timeout=30)
