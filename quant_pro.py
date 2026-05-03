@@ -374,6 +374,50 @@ def get_company_profile(ticker_num, ticker_full=None, yf_info=None):
     except Exception:
         return {'profile': '讀取失敗', 'industry': 'N/A', 'raw_text': None}
 
+def fetch_goodinfo_data(ticker_num):
+    url_main = f'https://goodinfo.tw/tw/StockDetail.asp?STOCK_ID={ticker_num}'
+    url_chip = f'https://goodinfo.tw/tw/ShowBuySaleChart.asp?STOCK_ID={ticker_num}&CHT_CAT=DATE'
+    main_html, chip_html = "", ""
+
+    try:
+        with sync_playwright() as p:
+            browser = p.chromium.launch(headless=True)
+            context = browser.new_context(
+                user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64)'
+            )
+            page = context.new_page()
+
+            try:
+                page.goto(url_main, wait_until='domcontentloaded', timeout=15000)
+            except Exception:
+                pass
+
+            page.wait_for_timeout(2000)
+
+            try:
+                main_html = page.content()
+            except Exception:
+                pass
+
+            try:
+                page.goto(url_chip, wait_until='domcontentloaded', timeout=15000)
+            except Exception:
+                pass
+
+            page.wait_for_timeout(2000)
+
+            try:
+                chip_html = page.content()
+            except Exception:
+                pass
+
+            browser.close()
+
+    except Exception:
+        pass
+
+    return main_html, chip_html
+
 def parse_financials_from_mytwcoverage(md_text):
     result = {'eps_ttm': None, 'eps_latest_quarter': None, 'single_month_yoy': None, 'single_month_mom': None, 'source': []}
     if not md_text: return result
