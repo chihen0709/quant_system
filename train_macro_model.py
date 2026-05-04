@@ -10,22 +10,21 @@ warnings.filterwarnings('ignore')
 
 def generate_mock_macro_data(days=1500):
     """
-    產生高仿真的歷史大盤籌碼資料 (假設我們已經寫爬蟲抓了過去 6 年的資料)
+    Generate mock market-positioning history.
     """
     np.random.seed(42)
     print("📥 正在載入歷史大盤籌碼資料...")
     
-    # 模擬 4 個維度的特徵
-    foreign_fut = np.random.normal(0, 10000, days)   # 外資期貨淨未平倉口數
-    pcr_ratio = np.random.normal(100, 20, days)      # 選擇權 PCR (通常 100 是多空分水嶺)
-    retail_sent = np.random.normal(0, 15, days)      # 散戶小台多空比 (%)
-    top_10 = np.random.normal(0, 5000, days)         # 前十大交易人淨口數
+    # Simulate four feature groups.
+    foreign_fut = np.random.normal(0, 10000, days)   # Foreign futures net OI.
+    pcr_ratio = np.random.normal(100, 20, days)      # Options put-call ratio.
+    retail_sent = np.random.normal(0, 15, days)      # Retail sentiment ratio.
+    top_10 = np.random.normal(0, 5000, days)         # Top 10 traders net position.
     
-    # 模擬目標值 (未來 5 天大盤是否上漲：1=漲, 0=跌)
-    # 這裡刻意加入一些非線性邏輯讓模型去學：
-    # 當外資多單大於 0 且 PCR > 105 時，上漲機率高；當散戶做多(>5%)時，下跌機率高(反指標)
+    # Target: whether the market rises over the next 5 days.
+    # Add simple nonlinear rules for the model to learn.
     y = np.where((foreign_fut > 0) & (pcr_ratio > 105) & (retail_sent < 5), 1, 0)
-    # 加入隨機雜訊，模擬真實市場的不確定性
+    # Add noise to mimic market uncertainty.
     noise = np.random.randint(0, 2, days)
     y = np.where(np.random.rand(days) > 0.8, noise, y)
     
@@ -41,19 +40,19 @@ def generate_mock_macro_data(days=1500):
 def train_macro_model():
     df = generate_mock_macro_data()
     
-    # 定義特徵 X 與目標 Y
+    # Define features and target.
     X = df[['Foreign_Fut', 'PCR_Ratio', 'Retail_Sentiment', 'Top_10_Traders']]
     y = df['Target_Up_5d']
     
-    # 切割訓練集(前 80%) 與 測試集(後 20%) - 時間序列不能洗牌
+    # Split by time, without shuffling.
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, shuffle=False)
     
     print("\n🧠 開始訓練隨機森林模型 (Random Forest)...")
-    # 建立模型：300棵樹，最大深度5(避免過擬合)
+    # Use a shallow random forest to reduce overfitting.
     rf_model = RandomForestClassifier(n_estimators=300, max_depth=5, random_state=42, class_weight='balanced')
     rf_model.fit(X_train, y_train)
     
-    # 預測與評估
+    # Predict and evaluate.
     y_pred = rf_model.predict(X_test)
     y_pred_prob = rf_model.predict_proba(X_test)[:, 1]
     
@@ -66,7 +65,7 @@ def train_macro_model():
     print(f"📊 模型辨識力 (AUC): {auc:.3f} (大於 0.6 即有實戰價值)")
     print("-" * 40)
     
-    # 將模型存檔 (這就是兵工廠造出來的武器)
+    # Save the trained model.
     import os
     os.makedirs('models', exist_ok=True)
     joblib.dump(rf_model, 'models/macro_rf_model.pkl')
@@ -74,4 +73,3 @@ def train_macro_model():
 
 if __name__ == "__main__":
     train_macro_model()
-

@@ -9,18 +9,18 @@ import warnings
 warnings.filterwarnings('ignore')
 
 # ==========================================
-# 1. Core Mind ：Minervini
+# 1. Minervini core strategy
 # ==========================================
 class MinerviniStrategy(bt.Strategy):
-    # 策略參數，方便未來貝氏最佳化 (GPR+EI) 直接呼叫修改
+    # Strategy parameters for future Bayesian tuning.
     params = (
-        ('hard_stop', 0.08),       # 硬停損 8%
-        ('exit_ma_period', 20),    # 跌破 20MA 出場
-        ('printlog', True),        # 是否印出交易日誌
+        ('hard_stop', 0.08),       # 8% hard stop.
+        ('exit_ma_period', 20),    # Exit below the 20MA.
+        ('printlog', True),        # Print trade logs.
     )
 
     def log(self, txt, dt=None):
-        """記錄交易日誌"""
+        """Log trade events."""
         if self.params.printlog:
             dt = dt or self.datas[0].datetime.date(0)
             print(f'[{dt.isoformat()}] {txt}')
@@ -30,21 +30,21 @@ class MinerviniStrategy(bt.Strategy):
         self.datahigh = self.datas[0].high
         self.datalow = self.datas[0].low
 
-        # 建立均線指標
+        # Moving average indicators.
         self.ma20 = bt.indicators.SMA(self.datas[0], period=self.params.exit_ma_period)
         self.ma50 = bt.indicators.SMA(self.datas[0], period=50)
         self.ma150 = bt.indicators.SMA(self.datas[0], period=150)
         self.ma200 = bt.indicators.SMA(self.datas[0], period=200)
 
-        # 52周 (約 250 個交易日) 最高最低價
+        # 52-week high and low, about 250 trading days.
         self.high52w = bt.indicators.Highest(self.datahigh, period=250)
         self.low52w = bt.indicators.Lowest(self.datalow, period=250)
 
-        # 動能指標
+        # Momentum indicators.
         self.rsi = bt.indicators.RSI_SMA(self.dataclose, period=14)
         self.macd = bt.indicators.MACD(self.dataclose)
 
-        # 訂單狀態與進場價格追蹤
+        # Track orders and entry price.
         self.order = None
         self.buyprice = None
 
@@ -75,58 +75,57 @@ class MinerviniStrategy(bt.Strategy):
             self.log(f'🩸 交易虧損結算 ➔ {pnl_str}')
 
     def next(self):
-        # 1. 如果有未完成訂單，先不動作
+        # Skip while an order is pending.
         if self.order:
             return
 
         # ==================================
-        # 進場邏輯 (Minervini Trend Template)
+        # Entry rules based on the Minervini Trend Template.
         # ==================================
         if not self.position:
-            # 條件 1: 價 > 50MA > 150MA > 200MA
+            # Rule 1: price > 50MA > 150MA > 200MA.
             cond1 = self.dataclose[0] > self.ma50[0] > self.ma150[0] > self.ma200[0]
-            # 條件 2: 200MA 趨勢向上 (大於一個月前)
+            # Rule 2: 200MA is above its level one month ago.
             cond2 = self.ma200[0] > self.ma200[-20]
-            # 條件 3: 距離 52W 低點超過 30%
+            # Rule 3: price is at least 30% above the 52-week low.
             cond3 = self.dataclose[0] > (self.low52w[0] * 1.30)
-            # 條件 4: 距離 52W 高點 25% 以內
+            # Rule 4: price is within 25% of the 52-week high.
             cond4 = self.dataclose[0] > (self.high52w[0] * 0.75)
-            # 條件 5: 日線動能 RSI > 60 且 MACD柱狀體 > 0
+            # Rule 5: RSI > 60 and MACD histogram > 0.
             cond5 = self.rsi[0] > 60 and (self.macd.macd[0] - self.macd.signal[0]) > 0
-            # 條件 6: 站上 20MA
+            # Rule 6: price is above the 20MA.
             cond6 = self.dataclose[0] > self.ma20[0]
 
             if cond1 and cond2 and cond3 and cond4 and cond5 and cond6:
                 self.log(f'🚀 觸發 Minervini 攻擊型買進訊號！')
-                # 買進 100% 可用資金 (實務上通常會分批，這裡簡化為全押)
-                # 稍微留一點現金避免手續費導致保證金不足
+                # Use most available cash, leaving room for fees.
                 size = math.floor((self.broker.get_cash() * 0.95) / self.dataclose[0]) 
                 self.order = self.buy(size=size)
 
         # ==================================
-        # 出場邏輯 (動態停利與硬停損)
+        # Exit rules for trailing protection and hard stop.
         # ==================================
         else:
             current_pnl_pct = (self.dataclose[0] - self.buyprice) / self.buyprice
 
-            # 出場 A：跌破 20MA 短期防守線 (動態停利/停損)
+            # Exit A: close below the 20MA defense line.
             if self.dataclose[0] < self.ma20[0]:
                 self.log(f'🛡️ 跌破 {self.params.exit_ma_period}MA 防守線，執行獲利了結/減碼賣出')
                 self.order = self.sell(size=self.position.size)
                 
-            # 出場 B：觸發絕對硬停損 (例如 -8%)
+            # Exit B: hard stop is hit.
             elif current_pnl_pct <= -self.params.hard_stop:
                 self.log(f'💀 觸發硬停損 (-{self.params.hard_stop*100:.1f}%)，斷尾求生賣出')
                 self.order = self.sell(size=self.position.size)
 
 
 # ==========================================
-# 2. 啟動回測引擎 (Cerebro)
+# 2. Run the Cerebro backtest engine
 # ==========================================
 def run_backtest(ticker, start_date, end_date):
     print(f"📥 正在從 Yahoo Finance 下載 {ticker} 歷史資料...")
     
-    # 下載歷史股價並修正 MultiIndex 問題
+    # Download price history and flatten MultiIndex columns.
     df = yf.download(ticker, start=start_date, end=end_date, auto_adjust=True, progress=False)
     if isinstance(df.columns, pd.MultiIndex):
         df.columns = df.columns.droplevel(1)
@@ -135,23 +134,23 @@ def run_backtest(ticker, start_date, end_date):
         print("❌ 找不到資料，請檢查股票代碼。")
         return
 
-    # 將 Pandas DataFrame 轉換成 Backtrader 認識的格式
+    # Convert the DataFrame for Backtrader.
     data = bt.feeds.PandasData(dataname=df)
 
-    # 建立 Cerebro 大腦
+    # Create the Cerebro engine.
     cerebro = bt.Cerebro()
     cerebro.adddata(data)
     
-    # 注入策略
+    # Add the strategy.
     cerebro.addstrategy(MinerviniStrategy, hard_stop=0.08, exit_ma_period=20)
 
-    # 初始資金 100 萬台幣
+    # Initial capital: 1,000,000 TWD.
     INITIAL_CASH = 1000000.0
     cerebro.broker.setcash(INITIAL_CASH)
-    # 台股手續費計算：買賣各 0.1425% (未含證交稅，此處簡單抓單邊 0.002)
+    # Approximate Taiwan stock trading fee.
     cerebro.broker.setcommission(commission=0.002)
 
-    # 加入專業分析器
+    # Add performance analyzers.
     cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe', riskfreerate=0.01)
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
     cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name='trades')
@@ -160,11 +159,11 @@ def run_backtest(ticker, start_date, end_date):
     print("=" * 50)
     print("⏳ 開始執行歷史回測...")
     
-    # 執行回測
+    # Run the backtest.
     results = cerebro.run()
     strat = results[0]
 
-    # 提取分析報告
+    # Collect performance metrics.
     final_value = cerebro.broker.getvalue()
     total_return = ((final_value / INITIAL_CASH) - 1) * 100
     
@@ -187,15 +186,14 @@ def run_backtest(ticker, start_date, end_date):
     print(f"🔹 夏普比率 (Sharpe Ratio): {sharpe_ratio:.2f}")
     print("=" * 50)
 
-    # 畫出回測圖表
+    # Plot the backtest chart.
     try:
         print("📈 正在繪製回測圖表...")
-        # style='candlestick' 會畫出漂亮的紅綠 K 線
+        # Use candlesticks for price bars.
         cerebro.plot(style='candlestick', barup='red', bardown='green', volume=True)
     except Exception as e:
         print(f"⚠️ 繪圖失敗 (可能是遠端/無UI環境導致): {e}")
 
 if __name__ == '__main__':
-    # 執行 2454 (聯發科) 過去 5 年的回測
+    # Backtest 2454.TW over the sample period.
     run_backtest('2454.TW', start_date='2019-01-01', end_date='2024-01-01')
-

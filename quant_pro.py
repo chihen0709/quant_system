@@ -29,7 +29,7 @@ import yfinance as yf
 import joblib  
 
 # ==========================================
-# system path & setting 
+# Paths and settings
 # ==========================================
 warnings.filterwarnings('ignore')
 
@@ -49,8 +49,9 @@ HOLD_DAYS = 20
 REPORT_DIR = 'reports'
 MODEL_DIR = 'models'
 CONFIG_DIR = 'config'
-#for local database
-MY_TW_COVERAGE_PATH = ""
+
+# Local database path.
+MY_TW_COVERAGE_PATH = os.environ.get('MY_TW_COVERAGE_PATH', './My-TW-Coverage')
 
 
 
@@ -75,7 +76,7 @@ os.makedirs(CONFIG_DIR, exist_ok=True)
 bot = telebot.TeleBot(TELEGRAM_TOKEN) if TELEGRAM_TOKEN and TELEGRAM_TOKEN != '您的_BOT_TOKEN_貼在這裡' else None
 
 # ==========================================
-#  Telegram sender 
+# Telegram sender
 # ==========================================
 def safe_send_message(chat_id, text, parse_mode=None):
     if not bot or not chat_id: return False
@@ -112,7 +113,7 @@ def safe_reply_to(message, text, parse_mode=None):
     except Exception: return False
 
 # ==========================================
-# Module concentration
+# Configuration loader
 # ==========================================
 def load_best_params():
     default_params = {'hard_stop': 0.08, 'ma_period': 20}
@@ -125,7 +126,7 @@ def load_best_params():
 SYS_PARAMS = load_best_params()
 
 # ==========================================
-# Monitor
+# Market monitor
 # ==========================================
 def check_market_status(region='TW'):
     log(f'[MARKET] 正在評估 {region} 大盤系統風險...')
@@ -139,7 +140,7 @@ def check_market_status(region='TW'):
         except Exception as e: log(f"[MARKET-WARN] 載入 RF 模型失敗: {e}")
 
     try:
-        # 美股看 S&P 500 (^GSPC)，台股看 ^TWII
+        # Use ^TWII for Taiwan and ^GSPC for the US.
         index_ticker = '^TWII' if region == 'TW' else '^GSPC'
         df = yf.download(index_ticker, period='6mo', progress=False, auto_adjust=True)
         if df.empty: return 'offensive', 0.1
@@ -261,11 +262,11 @@ def create_macro_dashboard_image(market_mode, macro_score, output_path, region='
 
 def get_defensive_etf_pool(region='TW'):
     if region == 'US':
-        return ['SPY', 'QQQ', 'TLT', 'IEF', 'GLD', 'SH'] # 標普, 那斯達克, 20年美債, 7-10年美債, 黃金, 標普反向
+        return ['SPY', 'QQQ', 'TLT', 'IEF', 'GLD', 'SH'] # S&P 500, Nasdaq, long bonds, intermediate bonds, gold, inverse S&P 500.
     return ['0050.TW', '0056.TW', '00713.TW', '00878.TW', '00679B.TWO', '00687B.TWO', '00632R.TW']
 
 # ==========================================
-# basic tool
+# Basic utilities
 # ==========================================
 def now_str(): return datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 def log(msg): print(f'[{now_str()}] {msg}', flush=True)
@@ -291,7 +292,7 @@ def clip_text(text, limit=180): return '' if not text else (str(text).strip() if
 
 def normalize_ticker(ticker):
     ticker = str(ticker).strip().upper()
-    # 如果純數字且長度為4，自動補上 .TW
+    # Add .TW for four-digit Taiwan tickers.
     if ticker.isdigit() and len(ticker) == 4:
         return ticker + '.TW'
     return ticker
@@ -307,20 +308,20 @@ def update_my_tw_coverage(chat_id=None):
     if not os.path.isdir(MY_TW_COVERAGE_PATH): return
     run_cmd(['git', 'pull'], MY_TW_COVERAGE_PATH, GIT_PULL_TIMEOUT, 'git pull')
     
-    # 🚀 將 'python3' 改為 sys.executable
+    # Use the current Python executable.
     run_cmd([sys.executable, 'scripts/update_financials.py'], MY_TW_COVERAGE_PATH, FINANCIAL_UPDATE_TIMEOUT, 'update_financials.py')
     
 def is_us_ticker(ticker):
-    """判斷是否為美股標的 (沒有 .TW 或 .TWO 後綴)"""
+    """Return True for tickers without Taiwan suffixes."""
     return not ticker.endswith(('.TW', '.TWO'))
 
 # ==========================================
-# data diging 
+# Data collection
 # ==========================================
 def get_company_profile(ticker_num, ticker_full=None, yf_info=None):
     is_us = is_us_ticker(ticker_full) if ticker_full else False
 
-    # 📌 美股邏輯：直接依賴 yfinance 的 info
+    # US stocks use yfinance info.
     if is_us:
         if yf_info:
             industry = yf_info.get('industry', 'N/A')
@@ -329,7 +330,7 @@ def get_company_profile(ticker_num, ticker_full=None, yf_info=None):
             return {'profile': safe_desc, 'industry': industry, 'raw_text': None}
         return {'profile': '無法取得美股資料', 'industry': 'N/A', 'raw_text': None}
 
-    # 📌 台股邏輯：依賴 My-TW-Coverage
+    # Taiwan stocks use My-TW-Coverage.
     try:
         if not MY_TW_COVERAGE_PATH or not os.path.isdir(MY_TW_COVERAGE_PATH):
             return {
@@ -628,17 +629,17 @@ def merge_financial_snapshot(ticker_full, md_text, yf_info=None):
     return merged
 
 # ==========================================
-# Stock pool & judge for tech facce 
+# Stock pools and technical filters
 # ==========================================
 def get_us_stock_pool():
     try:
-        # 爬取 Wikipedia S&P 500 名單
+        # Fetch the S&P 500 list from Wikipedia.
         table = pd.read_html('https://en.wikipedia.org/wiki/List_of_S%26P_500_companies')
         df = table[0]
         return df['Symbol'].tolist()
     except Exception as e:
         log_exception("[US-POOL-ERROR]", e)
-        # 失敗的備案：四大科技股與大型股
+        # Fallback to major US large caps.
         return ['AAPL', 'MSFT', 'NVDA', 'TSLA', 'AMZN', 'GOOGL', 'META', 'AMD', 'BRK-B', 'JPM']
 
 def get_tw_stock_pool(mode='offensive'):
@@ -658,7 +659,7 @@ def get_tw_stock_pool(mode='offensive'):
 def download_stock_df(ticker):
     ticker = normalize_ticker(ticker)
     df = yf.download(ticker, period='5y', progress=False, auto_adjust=True)
-    # 如果是台股抓不到，嘗試切換上市/上櫃後綴
+    # Try the OTC suffix if a Taiwan listing is missing.
     if df.empty and ticker.endswith('.TW'):
         alt = ticker.replace('.TW', '.TWO')
         df = yf.download(alt, period='5y', progress=False, auto_adjust=True)
@@ -687,7 +688,7 @@ def evaluate_technical(df, market_mode='offensive'):
     c2 = bool(latest['Close'] > latest['Low52W'] * 1.30) if not pd.isna(latest['Low52W']) else False
     c3 = bool(latest['Close'] > latest['High52W'] * 0.75) if not pd.isna(latest['High52W']) else False
     c4 = bool((latest['Close'] >= latest['BBMid']) and (latest['RSI'] > 60) and (latest['MACD_Osc'] > 0)) if not pd.isna(latest['BBMid']) else False
-    c5 = bool(latest['Volume'] > 500_000) # 放寬美股與台股的共同標準
+    c5 = bool(latest['Volume'] > 500_000) # Shared liquidity threshold.
     c6 = bool(latest['Close'] > latest['MA5'] > latest['MA20'] > latest['MA60']) if not pd.isna(latest['MA60']) else False
     c7 = bool(latest['Close'] > latest['MA240']) if not pd.isna(latest['MA240']) else False
 
@@ -755,14 +756,14 @@ def calc_fundamental_score(f, is_us=False):
     if eq is not None: score += 18 if eq >= 20 else (14 if eq >= 10 else (8 if eq > 0 else -8))
     if ettm is not None: score += 20 if ettm >= 40 else (14 if ettm >= 20 else (8 if ettm > 0 else -8))
     
-    # loopback 
+    # Fallback boost for sparse US data.
     if is_us and score < 30 and (syoy is not None or ettm is not None):
         score += 20 
         
     return max(0, min(score, 100))
 
 def calc_chip_score(f, is_us=False):
-    if is_us: return 0 # 
+    if is_us: return 0 # US stocks do not use Taiwan chip data.
     score = 0
     t2, t5, t10, f5 = f.get('total_2d'), f.get('total_5d'), f.get('total_10d'), f.get('foreign_5d')
     if t2 is not None: score += 12 if t2 > 0 else -6
@@ -773,12 +774,12 @@ def calc_chip_score(f, is_us=False):
 
 def final_total_score(t, f, c, is_us=False):
     if is_us:
-        # 美股沒有籌碼分數，權重分配給技術與基本面 (70% Tech, 30% Fund)
+        # US stocks use technical and fundamental scores only.
         return t * 0.70 + f * 0.30
     return t * SYS_PARAMS.get('tech_weight', WEIGHT_TECH) + f * SYS_PARAMS.get('fund_weight', WEIGHT_FUND) + c * SYS_PARAMS.get('chip_weight', WEIGHT_CHIP)
 
 # ==========================================
-# report & card generator 
+# Report and card generation
 # ==========================================
 def save_exquisite_plot(df, weekly, monthly, ticker, ranking_info):
     fig = plt.figure(figsize=(16, 14))
@@ -902,7 +903,7 @@ def create_strategy_card_image(ticker, close_price, ma5, ma20, high52w, hard_sto
     except Exception as e: log_exception('[PLOT-ERROR]', e); return None
 
 def build_stock_report(ticker, tech_pack, fin_data, profile_info, rank=None):
-    """🔥 動態適應台股與美股的詳細報告 🔥"""
+    """Build a market-aware stock report."""
     latest, c, m = tech_pack['latest'], tech_pack['conditions'], tech_pack['metrics']
     mode = tech_pack['mode']
     is_us = is_us_ticker(ticker)
@@ -923,7 +924,7 @@ def build_stock_report(ticker, tech_pack, fin_data, profile_info, rank=None):
     strategy_card_path = os.path.join(REPORT_DIR, f'{ticker}_strategy.png')
     create_strategy_card_image(ticker, close_val, safe_float(m.get("ma5")) or close_val, opt_ma_val, safe_float(latest.get("High52W")) or (close_val * 1.1), opt_hard_stop, strategy_card_path)
 
-    # 報告組裝
+    # Assemble the report.
     report = ''
     if rank is not None: report += f'🏆 **排名 #{rank}**\n'
     
@@ -932,7 +933,7 @@ def build_stock_report(ticker, tech_pack, fin_data, profile_info, rank=None):
 
     report += f'📊 **【量化診斷：{ticker}】** ({mode_text})\n'
     
-    # 分數呈現 (美股隱藏籌碼分數以避免誤導)
+    # Hide chip score for US stocks.
     if is_us:
         report += f'💰 最新收盤：`{latest["Close"]:.2f}` _({m["latest_date"]})_\n'
         report += f'🧮 總分：`{total_score:.1f}` | 技術：`{tech_score:.1f}` | 基本：`{fund_score:.1f}`\n'
@@ -1070,7 +1071,7 @@ def scan_and_rank_market(chat_id=None, requested_by_user=False, market_mode='off
     return ranked[:FINAL_TOP_N]
 
 # ==========================================
-# Main task & automatic scheduler 
+# Main jobs and scheduler
 # ==========================================
 def run_market_scan_job(chat_id, requested_by_user=False, region='TW'):
     market_mode, macro_score = check_market_status(region)
@@ -1117,7 +1118,7 @@ def run_weekly_optimization():
     except Exception as e: log(f"啟動最佳化失敗: {e}")
 
 # ==========================================
-# Telegram binding & polling 
+# Telegram handlers and polling
 # ==========================================
 if bot:
     @bot.message_handler(commands=['start', 'help'])
@@ -1152,11 +1153,11 @@ if bot:
         else: safe_send_message(message.chat.id, '❌ 找不到資料')
 
 def schedule_loop():
-    #  16:30 scan TW stock
+    # Scan Taiwan stocks at 16:30.
     schedule.every().day.at('16:30').do(start_scan_thread, chat_id=CHAT_ID, requested_by_user=False, region='TW')
-    # 凌晨 05:00 (美股收盤後) 掃描美股
+    # Scan US stocks at 05:00 after market close.
     schedule.every().day.at('05:00').do(start_scan_thread, chat_id=CHAT_ID, requested_by_user=False, region='US')
-    # 週末跑最佳化
+    # Run weekly optimization.
     schedule.every().saturday.at("02:00").do(run_weekly_optimization)
     
     while True: schedule.run_pending(); time.sleep(1)
