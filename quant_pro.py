@@ -128,10 +128,27 @@ def safe_reply_to(message, text, parse_mode=None):
 # Configuration loader
 # ==========================================
 def load_best_params():
-    default_params = {'hard_stop': 0.08, 'ma_period': 20}
+    default_params = {
+        'hard_stop': 0.075,
+        'ma_period': 20,
+        'tech_weight': WEIGHT_TECH,
+        'fund_weight': WEIGHT_FUND,
+        'chip_weight': WEIGHT_CHIP,
+        'vcp_weight': 0.15,
+        'bb_weight': 0.10,
+        'ml_weight': 0.25,
+        'score_threshold': 0.75,
+        'stop_loss_pct': 0.075,
+        'risk_per_trade': 0.015,
+        'exit_ma_period': 20,
+        'model_path': None,
+    }
     if os.path.exists(PARAMS_FILE_PATH):
         try:
-            with open(PARAMS_FILE_PATH, 'r') as f: return json.load(f)
+            with open(PARAMS_FILE_PATH, 'r') as f:
+                loaded = json.load(f)
+            default_params.update(loaded)
+            return default_params
         except Exception as e: log(f"[CONFIG-WARN] 讀取參數失敗: {e}")
     return default_params
 
@@ -763,6 +780,14 @@ def compute_indicators(df):
 
 def evaluate_technical(df, market_mode='offensive'):
     df = compute_indicators(df)
+    try:
+        from quant.vcp import add_vcp_features
+        from quant.bollinger import add_bollinger_features
+
+        df = add_vcp_features(df)
+        df = add_bollinger_features(df)
+    except Exception as e:
+        log(f"[FEATURE-WARN] VCP/BB feature generation failed: {e}")
     latest = df.iloc[-1]
     
     c1 = bool(latest['Close'] > latest['MA50'] > latest['MA150'] > latest['MA200'])
@@ -810,9 +835,14 @@ def evaluate_technical(df, market_mode='offensive'):
     opt_ma_period = SYS_PARAMS.get('ma_period', 20)
     opt_ma_val = latest.get(f'MA{opt_ma_period}', latest.get('MA20'))
 
+    technical_score = max(0, min(score, 100))
+    vcp_score = safe_float(latest.get('vcp_score'), 0.0) or 0.0
+    bb_breakout = bool(latest.get('bb_breakout', 0))
+    bb_width_pctile = safe_float(latest.get('bb_width_pctile'))
+
     return {
-        'df': df, 'weekly': weekly, 'monthly': monthly, 'technical_score': max(0, min(score, 100)), 'latest': latest, 'mode': market_mode,
-        'conditions': {'trend_stack': c1, 'off_bottom': c2, 'near_high': c3, 'momentum': c4, 'liquidity': c5, 'short_mid_ma_stack': c6, 'above_ma240': c7, 'weekly_up': wk_up, 'monthly_up': mo_up, 'weekly_macd_positive': wk_macd_pos, 'monthly_macd_positive': mo_macd_pos},
+        'df': df, 'weekly': weekly, 'monthly': monthly, 'technical_score': technical_score, 'latest': latest, 'mode': market_mode,
+        'conditions': {'trend_stack': c1, 'off_bottom': c2, 'near_high': c3, 'momentum': c4, 'liquidity': c5, 'short_mid_ma_stack': c6, 'above_ma240': c7, 'weekly_up': wk_up, 'monthly_up': mo_up, 'weekly_macd_positive': wk_macd_pos, 'monthly_macd_positive': mo_macd_pos, 'vcp_setup': vcp_score >= 0.65, 'bb_breakout': bb_breakout},
         'metrics': {
             'latest_date': df.index[-1].strftime('%Y-%m-%d'), 'rsi': safe_float(latest['RSI']), 'macd_osc_d': safe_float(latest['MACD_Osc']),
             'macd_osc_w': safe_float(weekly.iloc[-1].get('MACD_Osc')) if len(weekly) else None,
@@ -821,7 +851,8 @@ def evaluate_technical(df, market_mode='offensive'):
             'dist_high_pct': ((latest['High52W'] - latest['Close']) / latest['High52W']) * 100 if latest['High52W'] else None,
             'ma5': safe_float(latest['MA5']), 'ma20': safe_float(latest['MA20']), 'opt_ma': safe_float(opt_ma_val),
             'ma50': safe_float(latest['MA50']), 'ma240': safe_float(latest['MA240']),
-            'bias5': safe_float(latest.get('BIAS5')), 'bias20': bias20, 'bias60': bias60, 'bias240': safe_float(latest.get('BIAS240'))
+            'bias5': safe_float(latest.get('BIAS5')), 'bias20': bias20, 'bias60': bias60, 'bias240': safe_float(latest.get('BIAS240')),
+            'vcp_score': vcp_score, 'vcp_pivot': safe_float(latest.get('vcp_pivot')), 'bb_width_pctile': bb_width_pctile, 'bb_breakout': bb_breakout
         }
     }
 
@@ -850,8 +881,13 @@ def calc_chip_score(f, is_us=False):
     return max(0, min(score, 100))
 
 def final_total_score(t, f, c, is_us=False):
-    if is_us: return t * 0.70 + f * 0.30
-    return t * SYS_PARAMS.get('tech_weight', WEIGHT_TECH) + f * SYS_PARAMS.get('fund_weight', WEIGHT_FUND) + c * SYS_PARAMS.get('chip_weight', WEIGHT_CHIP)
+    tech_w = max(0.0, float(SYS_PARAMS.get('tech_weight', WEIGHT_TECH)))
+    fund_w = max(0.0, float(SYS_PARAMS.get('fund_weight', WEIGHT_FUND)))
+    chip_w = 0.0 if is_us else max(0.0, float(SYS_PARAMS.get('chip_weight', WEIGHT_CHIP)))
+    total_w = tech_w + fund_w + chip_w
+    if total_w <= 0:
+        return t * (0.70 if is_us else WEIGHT_TECH) + f * (0.30 if is_us else WEIGHT_FUND) + (0 if is_us else c * WEIGHT_CHIP)
+    return (t * tech_w + f * fund_w + c * chip_w) / total_w
 
 # ==========================================
 # Report and card generation
@@ -1221,7 +1257,7 @@ def start_scan_thread(chat_id, requested_by_user, region='TW'):
 
 def run_weekly_optimization():
     log("🧬 啟動週末回歸測試與策略進化...")
-    try: subprocess.Popen(['python3', 'optimize_bayesian.py'])
+    try: subprocess.Popen(['python3', 'evolve_nsga2.py'])
     except Exception as e: log(f"啟動最佳化失敗: {e}")
 
 # ==========================================

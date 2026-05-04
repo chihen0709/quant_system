@@ -1,0 +1,26 @@
+{
+  "tech_weight": 0.35,
+  "vcp_weight": 0.15,
+  "bb_weight": 0.10,
+  "fund_weight": 0.10,
+  "chip_weight": 0.05,
+  "ml_weight": 0.25,
+  "score_threshold": 0.75,
+  "stop_loss_pct": 0.075,
+  "risk_per_trade": 0.015,
+  "exit_ma_period": 20,
+  "hard_stop": 0.075,
+  "ma_period": 20,
+  "model_path": null,
+  "optimizer": {
+    "name": "default",
+    "selection": "balanced",
+    "objectives": [
+      "total_return_pct",
+      "risk_adjusted_return",
+      "max_drawdown_pct",
+      "turnover"
+    ],
+    "pareto_front": []
+  }
+}

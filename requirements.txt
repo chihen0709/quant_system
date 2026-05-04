@@ -13,3 +13,5 @@ schedule
 joblib
 FinMind>=1.6.0
 tqdm
+torch>=2.2.0
+pytest
