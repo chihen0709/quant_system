@@ -50,7 +50,8 @@ REPORT_DIR = 'reports'
 MODEL_DIR = 'models'
 CONFIG_DIR = 'config'
 #for local database
-MY_TW_COVERAGE_PATH = os.environ.get('MY_TW_COVERAGE_PATH', './My-TW-Coverage')
+MY_TW_COVERAGE_PATH = ""
+
 
 
 MACRO_MODEL_PATH = os.path.join(MODEL_DIR, 'macro_rf_model.pkl')
