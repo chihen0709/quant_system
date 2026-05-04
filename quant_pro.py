@@ -40,8 +40,8 @@ matplotlib.rcParams['font.sans-serif'] = [
     'PingFang TC', 'SimHei', 'Arial Unicode MS', 'DejaVu Sans'
 ]
 
-TELEGRAM_TOKEN = 'YOUR_TELEGRAM_BOT_TOKEN'
-CHAT_ID = 'YOUR_TELEGRAM_CHAT_ID'
+TELEGRAM_TOKEN = os.environ.get('TELEGRAM_TOKEN', '')
+CHAT_ID = os.environ.get('CHAT_ID', '')
 
 TEST_MODE = False
 HOLD_DAYS = 20
