@@ -5,6 +5,8 @@ services:
     build: .
     container_name: stock_minervini_bot
     restart: always  # Restart after crashes or reboots.
+    env_file:
+      - .env
     environment:
       # Point the app to the external database inside the container.
       - MY_TW_COVERAGE_PATH=/app/My-TW-Coverage
