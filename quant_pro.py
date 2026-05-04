@@ -28,6 +28,14 @@ import telebot
 import yfinance as yf
 import joblib  
 
+try:
+    from FinMind.data import DataLoader
+    dl = DataLoader()
+except Exception as e:
+    DataLoader = None
+    dl = None
+    print(f"[FinMind-WARN] FinMind unavailable: {e}")
+
 # ==========================================
 # Paths and settings
 # ==========================================
@@ -41,10 +49,14 @@ matplotlib.rcParams['font.sans-serif'] = [
 ]
 
 TELEGRAM_TOKEN = os.environ.get('TELEGRAM_TOKEN', '')
-CHAT_ID = os.environ.get('CHAT_ID', '')
+CHAT_ID = os.environ.get('TELEGRAM_CHAT_ID') or os.environ.get('CHAT_ID', '')
+
 if not TELEGRAM_TOKEN or not CHAT_ID:
-    print("❌ 錯誤：找不到 TELEGRAM_TOKEN 或 CHAT_ID！請確認環境變數設定。")
-    exit(1)
+    print("⚠️ 找不到 TELEGRAM_TOKEN 或 TELEGRAM_CHAT_ID，Telegram bot will be disabled.")
+
+if TELEGRAM_TOKEN and ':' not in TELEGRAM_TOKEN:
+    print("⚠️ TELEGRAM_TOKEN format looks invalid. Telegram bot will be disabled.")
+    TELEGRAM_TOKEN = ''
 
 TEST_MODE = False
 HOLD_DAYS = 20
@@ -53,10 +65,7 @@ REPORT_DIR = 'reports'
 MODEL_DIR = 'models'
 CONFIG_DIR = 'config'
 
-# Local database path.
 MY_TW_COVERAGE_PATH = os.environ.get('MY_TW_COVERAGE_PATH', './My-TW-Coverage')
-
-
 
 MACRO_MODEL_PATH = os.path.join(MODEL_DIR, 'macro_rf_model.pkl')
 PARAMS_FILE_PATH = os.path.join(CONFIG_DIR, 'best_params.json')
@@ -76,7 +85,7 @@ os.makedirs(REPORT_DIR, exist_ok=True)
 os.makedirs(MODEL_DIR, exist_ok=True)
 os.makedirs(CONFIG_DIR, exist_ok=True)
 
-bot = telebot.TeleBot(TELEGRAM_TOKEN) if TELEGRAM_TOKEN and TELEGRAM_TOKEN != '您的_BOT_TOKEN_貼在這裡' else None
+bot = telebot.TeleBot(TELEGRAM_TOKEN) if TELEGRAM_TOKEN and ':' in TELEGRAM_TOKEN else None
 
 # ==========================================
 # Telegram sender
@@ -143,7 +152,6 @@ def check_market_status(region='TW'):
         except Exception as e: log(f"[MARKET-WARN] 載入 RF 模型失敗: {e}")
 
     try:
-        # Use ^TWII for Taiwan and ^GSPC for the US.
         index_ticker = '^TWII' if region == 'TW' else '^GSPC'
         df = yf.download(index_ticker, period='6mo', progress=False, auto_adjust=True)
         if df.empty: return 'offensive', 0.1
@@ -265,8 +273,11 @@ def create_macro_dashboard_image(market_mode, macro_score, output_path, region='
 
 def get_defensive_etf_pool(region='TW'):
     if region == 'US':
-        return ['SPY', 'QQQ', 'TLT', 'IEF', 'GLD', 'SH'] # S&P 500, Nasdaq, long bonds, intermediate bonds, gold, inverse S&P 500.
+        return ['SPY', 'QQQ', 'TLT', 'IEF', 'GLD', 'SH']
     return ['0050.TW', '0056.TW', '00713.TW', '00878.TW', '00679B.TWO', '00687B.TWO', '00632R.TW']
+
+def get_us_defensive_etf_pool():
+    return get_defensive_etf_pool('US')
 
 # ==========================================
 # Basic utilities
@@ -295,10 +306,10 @@ def clip_text(text, limit=180): return '' if not text else (str(text).strip() if
 
 def normalize_ticker(ticker):
     ticker = str(ticker).strip().upper()
-    # Add .TW for four-digit Taiwan tickers.
     if ticker.isdigit() and len(ticker) == 4:
         return ticker + '.TW'
     return ticker
+
 def run_cmd(cmd, cwd, timeout_sec, step_name):
     try:
         result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True, timeout=timeout_sec)
@@ -310,12 +321,9 @@ def update_my_tw_coverage(chat_id=None):
     safe_send_message(chat_id, '🔄 正在同步更新本地資料庫...')
     if not os.path.isdir(MY_TW_COVERAGE_PATH): return
     run_cmd(['git', 'pull'], MY_TW_COVERAGE_PATH, GIT_PULL_TIMEOUT, 'git pull')
-    
-    # Use the current Python executable.
     run_cmd([sys.executable, 'scripts/update_financials.py'], MY_TW_COVERAGE_PATH, FINANCIAL_UPDATE_TIMEOUT, 'update_financials.py')
     
 def is_us_ticker(ticker):
-    """Return True for tickers without Taiwan suffixes."""
     return not ticker.endswith(('.TW', '.TWO'))
 
 # ==========================================
@@ -323,8 +331,6 @@ def is_us_ticker(ticker):
 # ==========================================
 def get_company_profile(ticker_num, ticker_full=None, yf_info=None):
     is_us = is_us_ticker(ticker_full) if ticker_full else False
-
-    # US stocks use yfinance info.
     if is_us:
         if yf_info:
             industry = yf_info.get('industry', 'N/A')
@@ -333,14 +339,9 @@ def get_company_profile(ticker_num, ticker_full=None, yf_info=None):
             return {'profile': safe_desc, 'industry': industry, 'raw_text': None}
         return {'profile': '無法取得美股資料', 'industry': 'N/A', 'raw_text': None}
 
-    # Taiwan stocks use My-TW-Coverage.
     try:
         if not MY_TW_COVERAGE_PATH or not os.path.isdir(MY_TW_COVERAGE_PATH):
-            return {
-                'profile': '未設定 My-TW-Coverage，本地公司資料略過',
-                'industry': 'N/A',
-                'raw_text': None
-            }
+            return {'profile': '未設定 My-TW-Coverage，本地公司資料略過', 'industry': 'N/A', 'raw_text': None}
 
         target_file = None
         for root, dirs, files in os.walk(MY_TW_COVERAGE_PATH):
@@ -348,14 +349,12 @@ def get_company_profile(ticker_num, ticker_full=None, yf_info=None):
                 if file.startswith(str(ticker_num)) and file.endswith('.md'):
                     target_file = os.path.join(root, file)
                     break
-            if target_file:
-                break
+            if target_file: break
 
         if not target_file:
             return {'profile': '查無資料', 'industry': 'N/A', 'raw_text': None}
 
-        with open(target_file, 'r', encoding='utf-8') as f:
-            content = f.read()
+        with open(target_file, 'r', encoding='utf-8') as f: content = f.read()
 
         industry = 'N/A'
         for line in content.splitlines():
@@ -374,7 +373,6 @@ def get_company_profile(ticker_num, ticker_full=None, yf_info=None):
 
         safe_desc = (desc or '查無業務描述').replace('*', '').replace('_', '')
         return {'profile': safe_desc, 'industry': industry, 'raw_text': content}
-
     except Exception:
         return {'profile': '讀取失敗', 'industry': 'N/A', 'raw_text': None}
 
@@ -382,44 +380,24 @@ def fetch_goodinfo_data(ticker_num):
     url_main = f'https://goodinfo.tw/tw/StockDetail.asp?STOCK_ID={ticker_num}'
     url_chip = f'https://goodinfo.tw/tw/ShowBuySaleChart.asp?STOCK_ID={ticker_num}&CHT_CAT=DATE'
     main_html, chip_html = "", ""
-
     try:
         with sync_playwright() as p:
             browser = p.chromium.launch(headless=True)
-            context = browser.new_context(
-                user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64)'
-            )
+            context = browser.new_context(user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64)')
             page = context.new_page()
-
-            try:
-                page.goto(url_main, wait_until='domcontentloaded', timeout=15000)
-            except Exception:
-                pass
-
+            try: page.goto(url_main, wait_until='domcontentloaded', timeout=15000)
+            except Exception: pass
             page.wait_for_timeout(2000)
-
-            try:
-                main_html = page.content()
-            except Exception:
-                pass
-
-            try:
-                page.goto(url_chip, wait_until='domcontentloaded', timeout=15000)
-            except Exception:
-                pass
-
+            try: main_html = page.content()
+            except Exception: pass
+            
+            try: page.goto(url_chip, wait_until='domcontentloaded', timeout=15000)
+            except Exception: pass
             page.wait_for_timeout(2000)
-
-            try:
-                chip_html = page.content()
-            except Exception:
-                pass
-
+            try: chip_html = page.content()
+            except Exception: pass
             browser.close()
-
-    except Exception:
-        pass
-
+    except Exception: pass
     return main_html, chip_html
 
 def parse_financials_from_mytwcoverage(md_text):
@@ -581,8 +559,6 @@ def parse_goodinfo_chip_table(tables):
 
 def merge_financial_snapshot(ticker_full, md_text, yf_info=None):
     is_us = is_us_ticker(ticker_full)
-    
-    # US stock handling 
     if is_us:
         teps = safe_float(yf_info.get('trailingEps')) if yf_info else None
         rg = safe_float(yf_info.get('revenueGrowth')) if yf_info else None
@@ -598,7 +574,6 @@ def merge_financial_snapshot(ticker_full, md_text, yf_info=None):
             'sources': ['Yahoo Finance']
         }
         
-    # TW stock handling
     ticker_num = ticker_full.split('.')[0]
     from_md = parse_financials_from_mytwcoverage(md_text)
     main_html, chip_html = fetch_goodinfo_data(ticker_num)
@@ -632,23 +607,127 @@ def merge_financial_snapshot(ticker_full, md_text, yf_info=None):
     return merged
 
 # ==========================================
+# FinMind chip data helpers
+# ==========================================
+def _tw_numeric_stock_id(ticker):
+    return str(ticker).replace('.TW', '').replace('.TWO', '').strip()
+
+def get_tw_chip_data(ticker, days=10):
+    result = {
+        'chips_summary': 'FinMind 籌碼資料不足或查無資料',
+        'foreign_2d': None, 'foreign_3d': None, 'foreign_5d': None, 'foreign_10d': None,
+        'trust_2d': None, 'trust_3d': None, 'trust_5d': None, 'trust_10d': None,
+        'dealer_2d': None, 'dealer_3d': None, 'dealer_5d': None, 'dealer_10d': None,
+        'total_2d': None, 'total_3d': None, 'total_5d': None, 'total_10d': None,
+        'source': []
+    }
+
+    if dl is None:
+        result['chips_summary'] = 'FinMind 未安裝或初始化失敗，請檢查 requirements.txt'
+        return result
+
+    stock_id = _tw_numeric_stock_id(ticker)
+    if not stock_id.isdigit(): return result
+
+    try:
+        end_date = datetime.now().strftime('%Y-%m-%d')
+        start_date = (datetime.now() - pd.Timedelta(days=45)).strftime('%Y-%m-%d')
+        df = dl.taiwan_stock_institutional_investors(
+            stock_id=stock_id,
+            start_date=start_date,
+            end_date=end_date
+        )
+
+        if df is None or df.empty:
+            result['chips_summary'] = f'FinMind 回傳 0 筆資料 (區間 {start_date} ~ {end_date})'
+            return result
+
+        df = df.copy()
+        if 'date' in df.columns: df = df.sort_values('date')
+
+        for col in ['buy', 'sell']:
+            if col in df.columns: df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
+
+        if 'net_buy' not in df.columns:
+            if 'buy' in df.columns and 'sell' in df.columns: df['net_buy'] = df['buy'] - df['sell']
+            elif 'buy_sell' in df.columns: df['net_buy'] = pd.to_numeric(df['buy_sell'], errors='coerce').fillna(0)
+            else: return result
+
+        def actor_mask(actor):
+            if 'name' not in df.columns: return pd.Series(False, index=df.index)
+            return df['name'].astype(str).str.contains(actor, na=False)
+
+        def sum_last(actor, n):
+            tmp = df[actor_mask(actor)].tail(n)
+            if tmp.empty: return None
+            return float(tmp['net_buy'].sum())
+
+        actor_map = {'foreign': '外資', 'trust': '投信', 'dealer': '自營'}
+        for key, cname in actor_map.items():
+            for n in [2, 3, 5, 10]:
+                result[f'{key}_{n}d'] = sum_last(cname, n)
+
+        for n in [2, 3, 5, 10]:
+            vals = [result.get(f'{actor}_{n}d') for actor in ['foreign', 'trust', 'dealer']]
+            valid_vals = [v for v in vals if v is not None]
+            result[f'total_{n}d'] = sum(valid_vals) if valid_vals else None
+
+        t5 = result.get('total_5d')
+        if t5 is not None:
+            if t5 > 0: result['chips_summary'] = f'FinMind：近 5 日三大法人合計買超 {t5:.0f} 張'
+            elif t5 < 0: result['chips_summary'] = f'FinMind：近 5 日三大法人合計賣超 {abs(t5):.0f} 張'
+            else: result['chips_summary'] = 'FinMind：近 5 日三大法人中性'
+            result['source'].append('FinMind-Chips')
+
+    except Exception as e:
+        result['chips_summary'] = f'FinMind 籌碼讀取失敗: {e}'
+
+    return result
+
+def merge_finmind_chip_into_snapshot(fin_data, chip_data):
+    if not chip_data: return fin_data
+    merged = dict(fin_data)
+    
+    # 🌟 關鍵修復：強制讓系統把 FinMind 的狀態文字印出來
+    if 'chips_summary' in chip_data:
+        merged['chips_summary'] = chip_data['chips_summary']
+
+    chip_keys = [
+        'foreign_2d', 'foreign_3d', 'foreign_5d', 'foreign_10d',
+        'trust_2d', 'trust_3d', 'trust_5d', 'trust_10d',
+        'dealer_2d', 'dealer_3d', 'dealer_5d', 'dealer_10d',
+        'total_2d', 'total_3d', 'total_5d', 'total_10d'
+    ]
+
+    has_fm_data = any(chip_data.get(k) is not None for k in chip_keys)
+    if has_fm_data:
+        for k in chip_keys:
+            if k in chip_data: merged[k] = chip_data[k]
+        sources = list(merged.get('sources', []))
+        for s in chip_data.get('source', []):
+            if s not in sources: sources.append(s)
+        merged['sources'] = sources
+    return merged
+
+# ==========================================
 # Stock pools and technical filters
 # ==========================================
 def get_us_stock_pool():
     try:
-        # Fetch the S&P 500 list from Wikipedia.
-        table = pd.read_html('https://en.wikipedia.org/wiki/List_of_S%26P_500_companies')
-        df = table[0]
-        return df['Symbol'].tolist()
+        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'}
+        response = requests.get('https://en.wikipedia.org/wiki/List_of_S%26P_500_companies', headers=headers, timeout=15)
+        
+        
+        table = pd.read_html(StringIO(response.text))
+        return table[0]['Symbol'].tolist()
+        
     except Exception as e:
         log_exception("[US-POOL-ERROR]", e)
-        # Fallback to major US large caps.
         return ['AAPL', 'MSFT', 'NVDA', 'TSLA', 'AMZN', 'GOOGL', 'META', 'AMD', 'BRK-B', 'JPM']
 
 def get_tw_stock_pool(mode='offensive'):
     tickers = []
     if mode == 'defensive': tickers.extend(get_defensive_etf_pool('TW'))
-        
     for m in [2, 4]:
         try:
             res = requests.get(f'https://isin.twse.com.tw/isin/C_public.jsp?strMode={m}', timeout=15)
@@ -662,7 +741,6 @@ def get_tw_stock_pool(mode='offensive'):
 def download_stock_df(ticker):
     ticker = normalize_ticker(ticker)
     df = yf.download(ticker, period='5y', progress=False, auto_adjust=True)
-    # Try the OTC suffix if a Taiwan listing is missing.
     if df.empty and ticker.endswith('.TW'):
         alt = ticker.replace('.TW', '.TWO')
         df = yf.download(alt, period='5y', progress=False, auto_adjust=True)
@@ -691,7 +769,7 @@ def evaluate_technical(df, market_mode='offensive'):
     c2 = bool(latest['Close'] > latest['Low52W'] * 1.30) if not pd.isna(latest['Low52W']) else False
     c3 = bool(latest['Close'] > latest['High52W'] * 0.75) if not pd.isna(latest['High52W']) else False
     c4 = bool((latest['Close'] >= latest['BBMid']) and (latest['RSI'] > 60) and (latest['MACD_Osc'] > 0)) if not pd.isna(latest['BBMid']) else False
-    c5 = bool(latest['Volume'] > 500_000) # Shared liquidity threshold.
+    c5 = bool(latest['Volume'] > 500_000) 
     c6 = bool(latest['Close'] > latest['MA5'] > latest['MA20'] > latest['MA60']) if not pd.isna(latest['MA60']) else False
     c7 = bool(latest['Close'] > latest['MA240']) if not pd.isna(latest['MA240']) else False
 
@@ -758,15 +836,11 @@ def calc_fundamental_score(f, is_us=False):
     if smom is not None: score += 16 if smom >= 20 else (10 if smom >= 5 else (5 if smom >= 0 else -6))
     if eq is not None: score += 18 if eq >= 20 else (14 if eq >= 10 else (8 if eq > 0 else -8))
     if ettm is not None: score += 20 if ettm >= 40 else (14 if ettm >= 20 else (8 if ettm > 0 else -8))
-    
-    # Fallback boost for sparse US data.
-    if is_us and score < 30 and (syoy is not None or ettm is not None):
-        score += 20 
-        
+    if is_us and score < 30 and (syoy is not None or ettm is not None): score += 20 
     return max(0, min(score, 100))
 
 def calc_chip_score(f, is_us=False):
-    if is_us: return 0 # US stocks do not use Taiwan chip data.
+    if is_us: return 0
     score = 0
     t2, t5, t10, f5 = f.get('total_2d'), f.get('total_5d'), f.get('total_10d'), f.get('foreign_5d')
     if t2 is not None: score += 12 if t2 > 0 else -6
@@ -776,9 +850,7 @@ def calc_chip_score(f, is_us=False):
     return max(0, min(score, 100))
 
 def final_total_score(t, f, c, is_us=False):
-    if is_us:
-        # US stocks use technical and fundamental scores only.
-        return t * 0.70 + f * 0.30
+    if is_us: return t * 0.70 + f * 0.30
     return t * SYS_PARAMS.get('tech_weight', WEIGHT_TECH) + f * SYS_PARAMS.get('fund_weight', WEIGHT_FUND) + c * SYS_PARAMS.get('chip_weight', WEIGHT_CHIP)
 
 # ==========================================
@@ -906,7 +978,6 @@ def create_strategy_card_image(ticker, close_price, ma5, ma20, high52w, hard_sto
     except Exception as e: log_exception('[PLOT-ERROR]', e); return None
 
 def build_stock_report(ticker, tech_pack, fin_data, profile_info, rank=None):
-    """Build a market-aware stock report."""
     latest, c, m = tech_pack['latest'], tech_pack['conditions'], tech_pack['metrics']
     mode = tech_pack['mode']
     is_us = is_us_ticker(ticker)
@@ -927,7 +998,6 @@ def build_stock_report(ticker, tech_pack, fin_data, profile_info, rank=None):
     strategy_card_path = os.path.join(REPORT_DIR, f'{ticker}_strategy.png')
     create_strategy_card_image(ticker, close_val, safe_float(m.get("ma5")) or close_val, opt_ma_val, safe_float(latest.get("High52W")) or (close_val * 1.1), opt_hard_stop, strategy_card_path)
 
-    # Assemble the report.
     report = ''
     if rank is not None: report += f'🏆 **排名 #{rank}**\n'
     
@@ -936,7 +1006,6 @@ def build_stock_report(ticker, tech_pack, fin_data, profile_info, rank=None):
 
     report += f'📊 **【量化診斷：{ticker}】** ({mode_text})\n'
     
-    # Hide chip score for US stocks.
     if is_us:
         report += f'💰 最新收盤：`{latest["Close"]:.2f}` _({m["latest_date"]})_\n'
         report += f'🧮 總分：`{total_score:.1f}` | 技術：`{tech_score:.1f}` | 基本：`{fund_score:.1f}`\n'
@@ -959,7 +1028,7 @@ def build_stock_report(ticker, tech_pack, fin_data, profile_info, rank=None):
         report += f'{"✅" if c["trend_stack"] else "❌"} 長天期多頭排列 (價>50>150>200)\n'
         report += f'{"✅" if c["short_mid_ma_stack"] else "❌"} 短中期均線順多 (價>5>20>60)\n'
         report += f'{"✅" if c["above_ma240"] else "❌"} 站上 240MA\n'
-        report += f'{"✅" if c["off_bottom"] else "❌"} 已脫離 52W 低點至少 30%\n'
+        report += f'{"✅" if c["off_bottom"] else "❌"} 已脱離 52W 低點至少 30%\n'
         report += f'{"✅" if c["near_high"] else "❌"} 靠近 52W 高點 25% 內\n'
         report += f'{"✅" if c["momentum"] else "❌"} 日線動能：RSI>60 且 MACD>0\n'
 
@@ -1025,9 +1094,16 @@ def analyze_stock(ticker, market_mode='offensive', silent=False):
         profile_info = get_company_profile(ticker_num, ticker_full=ticker, yf_info=yf_info)
         fin_data = merge_financial_snapshot(ticker, profile_info['raw_text'], yf_info=yf_info)
         
+        if not is_us:
+            chip_data = get_tw_chip_data(ticker)
+            fin_data = merge_finmind_chip_into_snapshot(fin_data, chip_data)
+        
         report, img_path, strategy_img_path = build_stock_report(ticker, tech_pack, fin_data, profile_info)
         return report, img_path, strategy_img_path
-    except Exception as e: log_exception(f'[ANALYZE-ERROR] {ticker}', e); return (None, None, None) if silent else (f'❌ 錯誤：{e}', None, None)
+    
+    except Exception as e: 
+        log_exception(f'[ANALYZE-ERROR] {ticker}', e)
+        return (None, None, None) if silent else (f'❌ 錯誤：{e}', None, None)
 
 def scan_and_rank_market(chat_id=None, requested_by_user=False, market_mode='offensive', region='TW'):
     if region == 'TW':
@@ -1035,21 +1111,35 @@ def scan_and_rank_market(chat_id=None, requested_by_user=False, market_mode='off
     else:
         pool = get_us_defensive_etf_pool() if market_mode == 'defensive' else get_us_stock_pool()
         
-    if TEST_MODE: pool = pool[:15]
+    if TEST_MODE:
+        pool = pool[:15]
+
     prescreen = []
     for idx, ticker in enumerate(pool, start=1):
         try:
             if idx == 1 or idx % SCAN_PROGRESS_STEP == 0:
-                if requested_by_user: safe_send_message(chat_id, f'⏳ {region} 技術初篩：已處理 `{idx}`/`{len(pool)}` 檔...')
+                if requested_by_user:
+                    safe_send_message(chat_id, f'⏳ {region} 技術初篩：已處理 `{idx}`/`{len(pool)}` 檔...')
+
             tkr, df = download_stock_df(ticker)
-            if df.empty or len(df) < 250: continue
+            if df.empty or len(df) < 250:
+                continue
+
             tech_pack = evaluate_technical(df, market_mode)
-            if tech_pack['technical_score'] >= 50: prescreen.append({'ticker': tkr, 'df': df, 'tech_pack': tech_pack})
-        except Exception: pass
+            if tech_pack['technical_score'] >= 50:
+                prescreen.append({'ticker': tkr, 'df': df, 'tech_pack': tech_pack})
+
+        except Exception:
+            continue
         
     prescreen.sort(key=lambda x: x['tech_pack']['technical_score'], reverse=True)
     prescreen = prescreen[:TECHNICAL_PRESCREEN_LIMIT]
-    if requested_by_user: safe_send_message(chat_id, f'✅ 初篩完成，共 `{len(prescreen)}` 檔進入深度評分。')
+
+    if requested_by_user:
+        safe_send_message(
+            chat_id,
+            f'✅ 第一階段技術面海選完成，共 `{len(prescreen)}` 檔進入第二階段深度評分。'
+        )
 
     ranked = []
     for idx, item in enumerate(prescreen, start=1):
@@ -1061,15 +1151,29 @@ def scan_and_rank_market(chat_id=None, requested_by_user=False, market_mode='off
             
             profile_info = get_company_profile(ticker_num, ticker_full=ticker, yf_info=yf_info)
             fin_data = merge_financial_snapshot(ticker, profile_info['raw_text'], yf_info=yf_info)
+
+            if region == 'TW' and not is_us:
+                if requested_by_user:
+                    safe_send_message(chat_id, f'🐢 FinMind 籌碼精查 `{ticker}` ({idx}/{len(prescreen)})...')
+                chip_data = get_tw_chip_data(ticker)
+                fin_data = merge_finmind_chip_into_snapshot(fin_data, chip_data)
+                time.sleep(3)
             
             t_score = item['tech_pack']['technical_score']
             f_score = calc_fundamental_score(fin_data, is_us)
             c_score = calc_chip_score(fin_data, is_us)
             ranked.append({
-                'ticker': ticker, 'tech_pack': item['tech_pack'], 'fin_data': fin_data, 'profile_info': profile_info,
+                'ticker': ticker,
+                'tech_pack': item['tech_pack'],
+                'fin_data': fin_data,
+                'profile_info': profile_info,
                 'total_score': final_total_score(t_score, f_score, c_score, is_us)
             })
-        except Exception: pass
+
+        except Exception as e:
+            log_exception(f'[RANK-ERROR] {ticker}', e)
+            continue
+
     ranked.sort(key=lambda x: x['total_score'], reverse=True)
     return ranked[:FINAL_TOP_N]
 
@@ -1156,11 +1260,8 @@ if bot:
         else: safe_send_message(message.chat.id, '❌ 找不到資料')
 
 def schedule_loop():
-    # Scan Taiwan stocks at 16:30.
     schedule.every().day.at('16:30').do(start_scan_thread, chat_id=CHAT_ID, requested_by_user=False, region='TW')
-    # Scan US stocks at 05:00 after market close.
     schedule.every().day.at('05:00').do(start_scan_thread, chat_id=CHAT_ID, requested_by_user=False, region='US')
-    # Run weekly optimization.
     schedule.every().saturday.at("02:00").do(run_weekly_optimization)
     
     while True: schedule.run_pending(); time.sleep(1)
