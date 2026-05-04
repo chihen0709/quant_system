@@ -7,6 +7,7 @@ import warnings
 import threading
 import subprocess
 import traceback
+import sys
 from io import StringIO
 from datetime import datetime
 
@@ -49,8 +50,7 @@ REPORT_DIR = 'reports'
 MODEL_DIR = 'models'
 CONFIG_DIR = 'config'
 #for local database
-MY_TW_COVERAGE_PATH = ""
-
+MY_TW_COVERAGE_PATH = os.environ.get('MY_TW_COVERAGE_PATH', './My-TW-Coverage')
 
 
 MACRO_MODEL_PATH = os.path.join(MODEL_DIR, 'macro_rf_model.pkl')
@@ -302,13 +302,12 @@ def run_cmd(cmd, cwd, timeout_sec, step_name):
     except Exception as e: return {'ok': False, 'timeout': False, 'stdout': '', 'stderr': str(e)}
 
 def update_my_tw_coverage(chat_id=None):
-    if not MY_TW_COVERAGE_PATH or not os.path.isdir(MY_TW_COVERAGE_PATH):
-        log("[MY-TW-COVERAGE] path not configured, skip local database update.")
-        return
-
     safe_send_message(chat_id, '🔄 正在同步更新本地資料庫...')
+    if not os.path.isdir(MY_TW_COVERAGE_PATH): return
     run_cmd(['git', 'pull'], MY_TW_COVERAGE_PATH, GIT_PULL_TIMEOUT, 'git pull')
-    run_cmd(['python3', 'scripts/update_financials.py'], MY_TW_COVERAGE_PATH, FINANCIAL_UPDATE_TIMEOUT, 'update_financials.py')
+    
+    # 🚀 將 'python3' 改為 sys.executable
+    run_cmd([sys.executable, 'scripts/update_financials.py'], MY_TW_COVERAGE_PATH, FINANCIAL_UPDATE_TIMEOUT, 'update_financials.py')
     
 def is_us_ticker(ticker):
     """判斷是否為美股標的 (沒有 .TW 或 .TWO 後綴)"""
