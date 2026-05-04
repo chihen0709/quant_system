@@ -60,7 +60,7 @@ Example:
 ```env
 TELEGRAM_TOKEN=1234567890:AAxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 TELEGRAM_CHAT_ID=7255083299
-MY_TW_COVERAGE_PATH=/home/randal/My-TW-Coverage
+MY_TW_COVERAGE_PATH=/home/YOUR_USERNAME/My-TW-Coverage
 ```
 
 ### 3. Run with Docker
