@@ -10,6 +10,7 @@ services:
     environment:
       # Point the app to the external database inside the container.
       - MY_TW_COVERAGE_PATH=/app/My-TW-Coverage
+      - TZ=Asia/Taipei  # Set timezone for consistent timestamps.
     volumes:
       # Mount local folders for persistent data.
       - ./reports:/app/reports
