@@ -42,6 +42,9 @@ matplotlib.rcParams['font.sans-serif'] = [
 
 TELEGRAM_TOKEN = os.environ.get('TELEGRAM_TOKEN', '')
 CHAT_ID = os.environ.get('CHAT_ID', '')
+if not TELEGRAM_TOKEN or not CHAT_ID:
+    print("❌ 錯誤：找不到 TELEGRAM_TOKEN 或 CHAT_ID！請確認環境變數設定。")
+    exit(1)
 
 TEST_MODE = False
 HOLD_DAYS = 20
