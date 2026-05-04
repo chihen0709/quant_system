@@ -21,7 +21,13 @@ A fully automated quantitative stock technical analysis and strategy evolution t
 
 - **Strategy Optimization**
   - Runs Bayesian Optimization with Gaussian Process Regression.
-  - Runs NSGA-II multi-objective genetic algorithms to optimize trading parameters.
+  - Runs surrogate-assisted NSGA-II multi-objective evolution with real Backtrader fitness.
+  - Writes balanced Pareto-front parameters to `config/best_params.json`.
+
+- **Hybrid Research Pipeline**
+  - Builds reusable OHLCV feature frames with Minervini trend, VCP, Bollinger squeeze/breakout, DL signals, and hybrid scores.
+  - Provides a PyTorch CNN-BiLSTM-Attention training entrypoint for `dl_signal`.
+  - Keeps ML inference outside the Backtrader `next()` loop by precomputing signals.
 
 - **Telegram Integration**
   - Sends technical diagnostic reports, strategy entry/exit cards, and macro dashboards to Telegram.
@@ -222,6 +228,24 @@ Run NSGA-II strategy evolution:
 docker exec -it stock_minervini_bot python evolve_nsga2.py
 ```
 
+Run the hybrid Backtrader pipeline:
+
+```bash
+docker exec -it stock_minervini_bot python -m backtests.run_backtest --tickers 2454.TW 2330.TW AAPL NVDA --start 2019-01-01 --folds 2
+```
+
+Train the first DL signal model:
+
+```bash
+docker exec -it stock_minervini_bot python -m quant.dl --market MIXED --start 2018-01-01 --epochs 12 --tickers 2454.TW 2330.TW AAPL NVDA
+```
+
+Run surrogate-assisted NSGA-II and update `config/best_params.json`:
+
+```bash
+docker exec -it stock_minervini_bot python evolve_nsga2.py --tickers 2454.TW 2330.TW AAPL NVDA --start 2019-01-01 --folds 2
+```
+
 Open a shell inside the container:
 
 ```bash
@@ -363,6 +387,24 @@ Run historical backtest:
 
 ```bash
 python backtest_minervini_bt.py
+```
+
+Run the new hybrid feature-frame backtest:
+
+```bash
+python -m backtests.run_backtest --tickers 2454.TW 2330.TW AAPL NVDA --start 2019-01-01 --folds 2
+```
+
+Train a PyTorch DL signal model:
+
+```bash
+python -m quant.dl --market MIXED --start 2018-01-01 --epochs 12 --tickers 2454.TW 2330.TW AAPL NVDA
+```
+
+Run the surrogate-assisted NSGA-II optimizer:
+
+```bash
+python evolve_nsga2.py --tickers 2454.TW 2330.TW AAPL NVDA --start 2019-01-01 --folds 2
 ```
 
 Check Python syntax:
