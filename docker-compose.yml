@@ -4,14 +4,14 @@ services:
   quant_bot:
     build: .
     container_name: stock_minervini_bot
-    restart: always  # 當機或重開機時自動重啟
+    restart: always  # Restart after crashes or reboots.
     environment:
-      # 告訴程式我們的外部資料庫放在容器內的哪裡
+      # Point the app to the external database inside the container.
       - MY_TW_COVERAGE_PATH=/app/My-TW-Coverage
     volumes:
-      # 將本機的資料夾對應到容器內，確保資料永久保存
+      # Mount local folders for persistent data.
       - ./reports:/app/reports
       - ./models:/app/models
       - ./config:/app/config
-      # 注意：請確保你的 My-TW-Coverage 資料夾跟 quant_system 放在同一層
+      # Keep My-TW-Coverage next to quant_system.
       - ../My-TW-Coverage:/app/My-TW-Coverage
