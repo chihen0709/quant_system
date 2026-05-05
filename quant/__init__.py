@@ -1,6 +1,10 @@
-"""Reusable research pipeline primitives for the hybrid quant system."""
+"""Reusable research pipeline primitives for the hybrid quant system.
+
+Keep this package initializer lightweight. In particular, do not import
+``quant.dl`` here, because ``python -m quant.dl`` first imports ``quant`` and
+would otherwise load the module before runpy executes it.
+"""
 
 from .features import build_feature_frame
-from .dl import predict_dl_signals, train_dl_model
 
-__all__ = ["build_feature_frame", "predict_dl_signals", "train_dl_model"]
+__all__ = ["build_feature_frame"]

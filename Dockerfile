@@ -8,8 +8,9 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y git && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements and install Python packages.
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+COPY requirements.txt requirements-dl-cpu.txt ./
+RUN pip install --no-cache-dir --default-timeout=300 --retries 5 -r requirements.txt
+RUN pip install --no-cache-dir --default-timeout=300 --retries 5 -r requirements-dl-cpu.txt
 
 # Install Playwright Chromium.
 RUN playwright install chromium

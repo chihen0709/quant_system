@@ -58,6 +58,7 @@ Add your Telegram bot settings:
 ```env
 TELEGRAM_TOKEN=YOUR_BOT_TOKEN
 TELEGRAM_CHAT_ID=YOUR_CHAT_ID
+TELEGRAM_POLLING_ENABLED=1
 MY_TW_COVERAGE_PATH=/path/to/your/My-TW-Coverage
 ```
 
@@ -66,14 +67,35 @@ Example:
 ```env
 TELEGRAM_TOKEN=1234567890:AAxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 TELEGRAM_CHAT_ID=7255083299
+TELEGRAM_POLLING_ENABLED=1
 MY_TW_COVERAGE_PATH=/home/YOUR_USERNAME/My-TW-Coverage
 ```
+
+Only one running process can poll a Telegram bot token. If this machine is only
+for training, backtesting, or optimization, set:
+
+```env
+TELEGRAM_POLLING_ENABLED=0
+```
+
+This prevents Telegram `409 Conflict: terminated by other getUpdates request`
+errors while keeping local research commands usable.
 
 ### 3. Run with Docker
 
 ```bash
-docker-compose up -d --build
+docker compose up -d --build
 ```
+
+For NVIDIA GPU training inside Docker, first install NVIDIA Container Toolkit
+in the VM/host, then build with the GPU override:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.gpu.yml up -d --build
+docker exec -it stock_minervini_bot python -c "import torch; print(torch.cuda.is_available(), torch.cuda.get_device_name(0) if torch.cuda.is_available() else 'CPU')"
+```
+
+If the command prints `True`, `python -m quant.dl ...` will train on CUDA.
 
 Check logs:
 
@@ -186,20 +208,20 @@ docker logs -f stock_minervini_bot
 ### Stop
 
 ```bash
-docker-compose down
+docker compose down
 ```
 
 ### Restart
 
 ```bash
-docker-compose restart
+docker compose restart
 ```
 
 ### Rebuild After Code Changes
 
 ```bash
-docker-compose down
-docker-compose up -d --build
+docker compose down
+docker compose up -d --build
 ```
 
 ### Run Commands Inside Container
@@ -276,6 +298,7 @@ Install Python dependencies:
 
 ```bash
 pip install -r requirements.txt
+pip install -r requirements-dl-cpu.txt
 ```
 
 Install Playwright browser dependency:

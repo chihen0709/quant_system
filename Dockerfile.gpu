@@ -1,0 +1,19 @@
+# GPU-capable image for DL training. Requires NVIDIA Container Toolkit on host.
+FROM mcr.microsoft.com/playwright/python:v1.42.0-jammy
+
+WORKDIR /app
+
+ENV NVIDIA_VISIBLE_DEVICES=all
+ENV NVIDIA_DRIVER_CAPABILITIES=compute,utility
+
+RUN apt-get update && apt-get install -y git && rm -rf /var/lib/apt/lists/*
+
+COPY requirements.txt requirements-dl-cu121.txt ./
+RUN pip install --no-cache-dir --default-timeout=300 --retries 5 -r requirements.txt
+RUN pip install --no-cache-dir --default-timeout=300 --retries 5 -r requirements-dl-cu121.txt
+
+RUN playwright install chromium
+
+COPY . .
+
+CMD ["python", "quant_pro.py"]

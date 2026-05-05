@@ -1,0 +1,4 @@
+# Install CPU-only PyTorch. Keep this separate from requirements.txt so pip
+# does not pull CUDA/cuDNN wheels during Docker builds on CPU machines.
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch==2.5.1+cpu

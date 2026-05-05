@@ -50,6 +50,8 @@ matplotlib.rcParams['font.sans-serif'] = [
 
 TELEGRAM_TOKEN = os.environ.get('TELEGRAM_TOKEN', '')
 CHAT_ID = os.environ.get('TELEGRAM_CHAT_ID') or os.environ.get('CHAT_ID', '')
+TELEGRAM_POLLING_ENABLED = os.environ.get('TELEGRAM_POLLING_ENABLED', '1').strip().lower() not in ('0', 'false', 'no', 'off')
+USE_MACRO_MODEL = os.environ.get('USE_MACRO_MODEL', '0').strip().lower() in ('1', 'true', 'yes', 'on')
 
 if not TELEGRAM_TOKEN or not CHAT_ID:
     print("⚠️ 找不到 TELEGRAM_TOKEN 或 TELEGRAM_CHAT_ID，Telegram bot will be disabled.")
@@ -80,6 +82,12 @@ FINAL_TOP_N = 10
 WEIGHT_TECH = 0.50
 WEIGHT_FUND = 0.35
 WEIGHT_CHIP = 0.15
+
+US_MIN_AVG_VOLUME = int(os.environ.get('US_MIN_AVG_VOLUME', '3000000'))
+US_POOL_MAX_CANDIDATES = int(os.environ.get('US_POOL_MAX_CANDIDATES', '240'))
+US_POOL_MAX_RESULTS = int(os.environ.get('US_POOL_MAX_RESULTS', '180'))
+US_POOL_CACHE_TTL_HOURS = float(os.environ.get('US_POOL_CACHE_TTL_HOURS', '12'))
+US_POOL_CACHE_PATH = os.path.join(CONFIG_DIR, 'us_stock_pool_cache.json')
 
 os.makedirs(REPORT_DIR, exist_ok=True)
 os.makedirs(MODEL_DIR, exist_ok=True)
@@ -124,6 +132,28 @@ def safe_reply_to(message, text, parse_mode=None):
     try: bot.reply_to(message, text, parse_mode=parse_mode); return True
     except Exception: return False
 
+def start_telegram_polling():
+    if not bot:
+        log('[Telegram] Bot disabled because TELEGRAM_TOKEN/CHAT_ID is missing or invalid.')
+        return
+    if not TELEGRAM_POLLING_ENABLED:
+        log('[Telegram] Polling disabled by TELEGRAM_POLLING_ENABLED=0. Research/backtest commands can still run.')
+        return
+
+    try:
+        bot.delete_webhook(drop_pending_updates=False)
+        bot.get_updates(timeout=1, limit=1)
+    except Exception as e:
+        error_code = getattr(e, 'error_code', None)
+        description = str(e)
+        if error_code == 409 or 'Conflict' in description or 'getUpdates' in description:
+            log('[Telegram-409] Another process is already polling this bot token. Stop the other bot/container, or set TELEGRAM_POLLING_ENABLED=0 on this machine.')
+            return
+        log(f'[Telegram-WARN] Polling preflight failed: {e}')
+
+    log('[Telegram] Polling started.')
+    bot.infinity_polling(timeout=60, long_polling_timeout=30)
+
 # ==========================================
 # Configuration loader
 # ==========================================
@@ -159,7 +189,7 @@ SYS_PARAMS = load_best_params()
 # ==========================================
 def check_market_status(region='TW'):
     log(f'[MARKET] 正在評估 {region} 大盤系統風險...')
-    if region == 'TW' and os.path.exists(MACRO_MODEL_PATH):
+    if USE_MACRO_MODEL and region == 'TW' and os.path.exists(MACRO_MODEL_PATH):
         try:
             rf_model = joblib.load(MACRO_MODEL_PATH)
             mock_today_data = pd.DataFrame([[5000, 110, 2, 1000]], columns=['Foreign_Fut', 'PCR_Ratio', 'Retail_Sentiment', 'Top_10_Traders'])
@@ -170,17 +200,40 @@ def check_market_status(region='TW'):
 
     try:
         index_ticker = '^TWII' if region == 'TW' else '^GSPC'
-        df = yf.download(index_ticker, period='6mo', progress=False, auto_adjust=True)
-        if df.empty: return 'offensive', 0.1
+        df = yf.download(index_ticker, period='18mo', progress=False, auto_adjust=True)
+        if df.empty: return 'defensive', -0.1
         if isinstance(df.columns, pd.MultiIndex): df.columns = df.columns.droplevel(1)
         df['MA20'] = ta.trend.sma_indicator(df['Close'], 20)
+        df['MA50'] = ta.trend.sma_indicator(df['Close'], 50)
+        df['MA200'] = ta.trend.sma_indicator(df['Close'], 200)
         latest = df.iloc[-1]
-        
-        if not pd.isna(latest['MA20']) and latest['Close'] < latest['MA20']: return 'defensive', -0.3
-        else: return 'offensive', 0.5
+
+        close = safe_float(latest.get('Close'), 0) or 0
+        ma20 = safe_float(latest.get('MA20'))
+        ma50 = safe_float(latest.get('MA50'))
+        ma200 = safe_float(latest.get('MA200'))
+        ma200_prev = safe_float(df['MA200'].iloc[-21]) if len(df) > 220 else None
+        ret20 = close / df['Close'].iloc[-21] - 1 if len(df) > 21 and df['Close'].iloc[-21] else 0
+        high60 = df['Close'].tail(60).max()
+        drawdown60 = close / high60 - 1 if high60 else 0
+
+        score = 0.0
+        score += 0.18 if ma20 is not None and close > ma20 else -0.18
+        score += 0.22 if ma50 is not None and close > ma50 else -0.22
+        score += 0.28 if ma200 is not None and close > ma200 else -0.28
+        score += 0.12 if ma50 is not None and ma200 is not None and ma50 > ma200 else -0.12
+        score += 0.10 if ma200 is not None and ma200_prev is not None and ma200 > ma200_prev else -0.10
+        score += 0.10 if ret20 > 0 else -0.10
+        if drawdown60 < -0.10: score -= 0.18
+        elif drawdown60 > -0.04: score += 0.08
+
+        market_mode = 'offensive' if score >= 0.25 else 'defensive'
+        macro_score = max(-1.0, min(1.0, score))
+        log(f'[MARKET] {index_ticker} score={macro_score:.2f}, 20d={ret20*100:.1f}%, 60dDD={drawdown60*100:.1f}% => {market_mode}')
+        return market_mode, macro_score
     except Exception as e:
         log_exception('[MARKET-ERROR]', e)
-        return 'offensive', 0.1
+        return 'defensive', -0.1
 
 def create_macro_dashboard_image(market_mode, macro_score, output_path, region='TW'):
     mode_text = "🟢 多方輪動 (Offensive)" if market_mode == 'offensive' else "🔴 崩盤避險 (Defensive)"
@@ -580,10 +633,39 @@ def merge_financial_snapshot(ticker_full, md_text, yf_info=None):
         teps = safe_float(yf_info.get('trailingEps')) if yf_info else None
         rg = safe_float(yf_info.get('revenueGrowth')) if yf_info else None
         if rg is not None: rg = rg * 100
+        institutional = safe_float(yf_info.get('heldPercentInstitutions')) if yf_info else None
+        short_float = safe_float(yf_info.get('shortPercentOfFloat')) if yf_info else None
+        profit_margin = safe_float(yf_info.get('profitMargins')) if yf_info else None
+        earnings_growth = safe_float(yf_info.get('earningsGrowth')) if yf_info else None
+        avg_vol = safe_float(yf_info.get('averageVolume')) if yf_info else None
+        avg_vol10 = safe_float(yf_info.get('averageVolume10days')) if yf_info else None
+        latest_vol = safe_float(yf_info.get('volume')) if yf_info else None
+        short_ratio = safe_float(yf_info.get('shortRatio')) if yf_info else None
+        market_cap = safe_float(yf_info.get('marketCap')) if yf_info else None
+
+        institutional_pct = institutional * 100 if institutional is not None else None
+        short_float_pct = short_float * 100 if short_float is not None else None
+        profit_margin_pct = profit_margin * 100 if profit_margin is not None else None
+        earnings_growth_pct = earnings_growth * 100 if earnings_growth is not None else None
+
+        chip_summary_parts = []
+        if institutional_pct is not None: chip_summary_parts.append(f'機構持股 {institutional_pct:.1f}%')
+        if short_float_pct is not None: chip_summary_parts.append(f'空單/流通股 {short_float_pct:.1f}%')
+        if avg_vol is not None: chip_summary_parts.append(f'三月均量 {avg_vol/1_000_000:.1f}M')
+        chips_summary = '；'.join(chip_summary_parts) if chip_summary_parts else '美股籌碼資料不足，暫以流動性與空單壓力評估'
+
         return {
             'single_month_revenue': None, 'single_month_mom': None, 'single_month_yoy': rg,
             'eps_latest_quarter': None, 'eps_ttm': teps,
-            'chips_summary': '美股無日籌碼結構，依賴技術與動能',
+            'profit_margin_pct': profit_margin_pct, 'earnings_growth_pct': earnings_growth_pct,
+            'market_cap': market_cap,
+            'chips_summary': chips_summary,
+            'institutional_ownership_pct': institutional_pct,
+            'short_percent_float': short_float_pct,
+            'short_ratio': short_ratio,
+            'avg_volume_3m': avg_vol,
+            'avg_volume_10d': avg_vol10,
+            'latest_volume': latest_vol,
             'foreign_2d': None, 'foreign_3d': None, 'foreign_5d': None, 'foreign_10d': None,
             'trust_2d': None, 'trust_3d': None, 'trust_5d': None, 'trust_10d': None,
             'dealer_2d': None, 'dealer_3d': None, 'dealer_5d': None, 'dealer_10d': None,
@@ -729,18 +811,130 @@ def merge_finmind_chip_into_snapshot(fin_data, chip_data):
 # ==========================================
 # Stock pools and technical filters
 # ==========================================
+def _load_cached_us_pool():
+    try:
+        if not os.path.exists(US_POOL_CACHE_PATH): return None
+        with open(US_POOL_CACHE_PATH, 'r', encoding='utf-8') as f: payload = json.load(f)
+        age_hours = (time.time() - payload.get('created_at', 0)) / 3600
+        if age_hours <= US_POOL_CACHE_TTL_HOURS and payload.get('tickers'):
+            log(f"[US-POOL] 使用快取股票池 {len(payload['tickers'])} 檔，快取年齡 {age_hours:.1f}h")
+            return payload['tickers']
+    except Exception as e:
+        log(f"[US-POOL-WARN] 讀取快取失敗: {e}")
+    return None
+
+def _save_cached_us_pool(tickers):
+    try:
+        with open(US_POOL_CACHE_PATH, 'w', encoding='utf-8') as f:
+            json.dump({'created_at': time.time(), 'tickers': tickers}, f, indent=2)
+    except Exception as e:
+        log(f"[US-POOL-WARN] 寫入快取失敗: {e}")
+
+def _parse_market_cap(value):
+    if value is None: return 0
+    text = str(value).replace('$', '').replace(',', '').strip()
+    if not text or text in ('N/A', 'nan', '--'): return 0
+    multiplier = 1
+    suffix = text[-1].upper()
+    if suffix == 'T': multiplier = 1_000_000_000_000; text = text[:-1]
+    elif suffix == 'B': multiplier = 1_000_000_000; text = text[:-1]
+    elif suffix == 'M': multiplier = 1_000_000; text = text[:-1]
+    return safe_float(text, 0) * multiplier
+
+def _normalize_us_symbol(symbol):
+    s = str(symbol).strip().upper()
+    if not s or '^' in s or '$' in s: return None
+    s = s.replace('/', '-')
+    if len(s) > 8 or any(x in s for x in ['.W', '-WT', '-WS', '-U', '-R']): return None
+    return s
+
+def get_nasdaq_screener_symbols(limit=US_POOL_MAX_CANDIDATES):
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        'Accept': 'application/json,text/plain,*/*',
+        'Origin': 'https://www.nasdaq.com',
+        'Referer': 'https://www.nasdaq.com/market-activity/stocks/screener',
+    }
+    symbols = []
+    for exchange in ['nasdaq', 'nyse', 'amex']:
+        try:
+            url = f'https://api.nasdaq.com/api/screener/stocks?tableonly=true&limit=5000&exchange={exchange}'
+            data = requests.get(url, headers=headers, timeout=20).json()
+            rows = data.get('data', {}).get('table', {}).get('rows', [])
+            rows.sort(key=lambda row: _parse_market_cap(row.get('marketCap')), reverse=True)
+            for row in rows:
+                symbol = _normalize_us_symbol(row.get('symbol'))
+                if symbol: symbols.append(symbol)
+                if len(symbols) >= limit: break
+        except Exception as e:
+            log(f"[US-POOL-WARN] Nasdaq screener {exchange} failed: {e}")
+        if len(symbols) >= limit: break
+    return list(dict.fromkeys(symbols))[:limit]
+
+def passes_us_liquidity_and_fundamental_filter(ticker, min_avg_volume=US_MIN_AVG_VOLUME):
+    try:
+        df = yf.download(ticker, period='3mo', progress=False, auto_adjust=True)
+        if df.empty or len(df) < 25: return False
+        if isinstance(df.columns, pd.MultiIndex): df.columns = df.columns.droplevel(1)
+        avg5 = float(df['Volume'].tail(5).mean())
+        avg20 = float(df['Volume'].tail(20).mean())
+        if avg5 < min_avg_volume or avg20 < min_avg_volume:
+            return False
+
+        info = yf.Ticker(ticker).info
+        quote_type = str(info.get('quoteType', '')).upper()
+        if quote_type and quote_type not in ('EQUITY', 'ETF'):
+            return False
+        if quote_type == 'ETF':
+            return avg20 >= min_avg_volume * 2
+
+        market_cap = safe_float(info.get('marketCap'), 0) or 0
+        eps = safe_float(info.get('trailingEps')) or safe_float(info.get('forwardEps'))
+        revenue_growth = safe_float(info.get('revenueGrowth'))
+        earnings_growth = safe_float(info.get('earningsGrowth'))
+        profit_margin = safe_float(info.get('profitMargins'))
+
+        if market_cap < 1_000_000_000: return False
+        profitable = eps is not None and eps > 0
+        quality = (
+            (revenue_growth is not None and revenue_growth > 0.03) or
+            (earnings_growth is not None and earnings_growth > 0) or
+            (profit_margin is not None and profit_margin > 0.05)
+        )
+        return profitable and quality
+    except Exception:
+        return False
+
 def get_us_stock_pool():
+    cached = _load_cached_us_pool()
+    if cached: return cached
+
     try:
         headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'}
         response = requests.get('https://en.wikipedia.org/wiki/List_of_S%26P_500_companies', headers=headers, timeout=15)
-        
-        
         table = pd.read_html(StringIO(response.text))
-        return table[0]['Symbol'].tolist()
-        
+        sp500 = [_normalize_us_symbol(s) for s in table[0]['Symbol'].tolist()]
+        sp500 = [s for s in sp500 if s]
     except Exception as e:
         log_exception("[US-POOL-ERROR]", e)
-        return ['AAPL', 'MSFT', 'NVDA', 'TSLA', 'AMZN', 'GOOGL', 'META', 'AMD', 'BRK-B', 'JPM']
+        sp500 = ['AAPL', 'MSFT', 'NVDA', 'TSLA', 'AMZN', 'GOOGL', 'META', 'AMD', 'BRK-B', 'JPM']
+
+    candidates = list(dict.fromkeys(sp500 + get_nasdaq_screener_symbols()))
+    candidates = candidates[:US_POOL_MAX_CANDIDATES]
+    log(f"[US-POOL] 候選 {len(candidates)} 檔，套用 5/20日均量>{US_MIN_AVG_VOLUME/1_000_000:.1f}M + 基本面初篩...")
+    filtered = []
+    for idx, ticker in enumerate(candidates, start=1):
+        if passes_us_liquidity_and_fundamental_filter(ticker):
+            filtered.append(ticker)
+        if idx % 25 == 0:
+            log(f"[US-POOL] 已檢查 {idx}/{len(candidates)}，通過 {len(filtered)} 檔")
+        if len(filtered) >= US_POOL_MAX_RESULTS:
+            break
+
+    if not filtered:
+        filtered = ['AAPL', 'MSFT', 'NVDA', 'TSLA', 'AMZN', 'GOOGL', 'META', 'AMD', 'BRK-B', 'JPM']
+    _save_cached_us_pool(filtered)
+    return filtered
 
 def get_tw_stock_pool(mode='offensive'):
     tickers = []
@@ -862,16 +1056,53 @@ def calc_fundamental_score(f, is_us=False):
     smom = f.get('single_month_mom')
     eq = f.get('eps_latest_quarter')
     ettm = f.get('eps_ttm')
+    profit_margin = f.get('profit_margin_pct')
+    earnings_growth = f.get('earnings_growth_pct')
 
     if syoy is not None: score += 25 if syoy >= 30 else (18 if syoy >= 15 else (10 if syoy >= 5 else (-10 if syoy < 0 else 0)))
     if smom is not None: score += 16 if smom >= 20 else (10 if smom >= 5 else (5 if smom >= 0 else -6))
     if eq is not None: score += 18 if eq >= 20 else (14 if eq >= 10 else (8 if eq > 0 else -8))
     if ettm is not None: score += 20 if ettm >= 40 else (14 if ettm >= 20 else (8 if ettm > 0 else -8))
+    if is_us and profit_margin is not None: score += 16 if profit_margin >= 20 else (10 if profit_margin >= 10 else (5 if profit_margin > 0 else -8))
+    if is_us and earnings_growth is not None: score += 14 if earnings_growth >= 25 else (9 if earnings_growth >= 5 else (3 if earnings_growth > 0 else -6))
     if is_us and score < 30 and (syoy is not None or ettm is not None): score += 20 
     return max(0, min(score, 100))
 
 def calc_chip_score(f, is_us=False):
-    if is_us: return 0
+    if is_us:
+        score = 0
+        institutional = f.get('institutional_ownership_pct')
+        short_float = f.get('short_percent_float')
+        short_ratio = f.get('short_ratio')
+        avg_volume = f.get('avg_volume_3m')
+        avg_volume_10d = f.get('avg_volume_10d')
+        latest_volume = f.get('latest_volume')
+
+        if institutional is not None:
+            if 20 <= institutional <= 85: score += 26
+            elif 10 <= institutional < 20 or 85 < institutional <= 95: score += 16
+            elif institutional > 95: score += 8
+        if short_float is not None:
+            if short_float < 5: score += 24
+            elif short_float < 10: score += 16
+            elif short_float < 20: score += 6
+            else: score -= 12
+        if short_ratio is not None:
+            if short_ratio < 3: score += 16
+            elif short_ratio < 6: score += 8
+            elif short_ratio > 10: score -= 8
+        if avg_volume is not None:
+            if avg_volume >= 10_000_000: score += 18
+            elif avg_volume >= US_MIN_AVG_VOLUME: score += 12
+        if avg_volume and latest_volume:
+            rel_vol = latest_volume / avg_volume
+            if rel_vol >= 1.5: score += 16
+            elif rel_vol >= 1.0: score += 10
+            elif rel_vol < 0.6: score -= 6
+        if avg_volume and avg_volume_10d and avg_volume_10d > avg_volume * 1.15:
+            score += 8
+        return max(0, min(score, 100))
+
     score = 0
     t2, t5, t10, f5 = f.get('total_2d'), f.get('total_5d'), f.get('total_10d'), f.get('foreign_5d')
     if t2 is not None: score += 12 if t2 > 0 else -6
@@ -883,10 +1114,10 @@ def calc_chip_score(f, is_us=False):
 def final_total_score(t, f, c, is_us=False):
     tech_w = max(0.0, float(SYS_PARAMS.get('tech_weight', WEIGHT_TECH)))
     fund_w = max(0.0, float(SYS_PARAMS.get('fund_weight', WEIGHT_FUND)))
-    chip_w = 0.0 if is_us else max(0.0, float(SYS_PARAMS.get('chip_weight', WEIGHT_CHIP)))
+    chip_w = max(0.0, float(SYS_PARAMS.get('chip_weight', WEIGHT_CHIP)))
     total_w = tech_w + fund_w + chip_w
     if total_w <= 0:
-        return t * (0.70 if is_us else WEIGHT_TECH) + f * (0.30 if is_us else WEIGHT_FUND) + (0 if is_us else c * WEIGHT_CHIP)
+        return t * WEIGHT_TECH + f * WEIGHT_FUND + c * WEIGHT_CHIP
     return (t * tech_w + f * fund_w + c * chip_w) / total_w
 
 # ==========================================
@@ -1044,7 +1275,7 @@ def build_stock_report(ticker, tech_pack, fin_data, profile_info, rank=None):
     
     if is_us:
         report += f'💰 最新收盤：`{latest["Close"]:.2f}` _({m["latest_date"]})_\n'
-        report += f'🧮 總分：`{total_score:.1f}` | 技術：`{tech_score:.1f}` | 基本：`{fund_score:.1f}`\n'
+        report += f'🧮 總分：`{total_score:.1f}` | 技術：`{tech_score:.1f}` | 基本：`{fund_score:.1f}` | 籌碼：`{chip_score:.1f}`\n'
     else:
         report += f'💰 最新收盤：`{latest["Close"]:.2f}` _(資料日期: {m["latest_date"]})_\n'
         report += f'🧮 總分：`{total_score:.1f}` | 技術：`{tech_score:.1f}` | 基本：`{fund_score:.1f}` | 籌碼：`{chip_score:.1f}`\n'
@@ -1079,6 +1310,7 @@ def build_stock_report(ticker, tech_pack, fin_data, profile_info, rank=None):
             report += '💹 **基本面 (Yahoo Finance)：**\n'
             report += f'🔸 近四季 EPS (TTM)：`{safe_num_str(fin_data.get("eps_ttm"))}`\n'
             report += f'🔸 營收成長 (Y/Y)：`{safe_pct_str(fin_data.get("single_month_yoy"))}`\n'
+            report += f'🔸 獲利率 / 盈餘成長：`{safe_pct_str(fin_data.get("profit_margin_pct"))}` / `{safe_pct_str(fin_data.get("earnings_growth_pct"))}`\n'
         else:
             report += '💹 **基本面：**\n'
             report += f'🔸 最新一季 EPS：`{safe_num_str(fin_data.get("eps_latest_quarter"))}`\n🔸 近四季 EPS：`{safe_num_str(fin_data.get("eps_ttm"))}`\n'
@@ -1086,7 +1318,13 @@ def build_stock_report(ticker, tech_pack, fin_data, profile_info, rank=None):
 
     report += '------------------------\n'
     if is_us:
-        report += '🏦 **籌碼面：** 美股無台股三大法人結構，評分已自動調高技術面比重。\n'
+        report += '🏦 **美股籌碼面：**\n'
+        report += f'🔸 籌碼摘要：`{fin_data.get("chips_summary", "N/A")}`\n'
+        report += f'🔸 機構持股 / 空單占流通股：`{safe_pct_str(fin_data.get("institutional_ownership_pct"))}` / `{safe_pct_str(fin_data.get("short_percent_float"))}`\n'
+        report += f'🔸 Short Ratio：`{safe_num_str(fin_data.get("short_ratio"), 2)}`\n'
+        report += f'🔸 成交量 最新/10日/3月均量：`{safe_num_str((fin_data.get("latest_volume") or 0) / 1_000_000, 1)}M` / `{safe_num_str((fin_data.get("avg_volume_10d") or 0) / 1_000_000, 1)}M` / `{safe_num_str((fin_data.get("avg_volume_3m") or 0) / 1_000_000, 1)}M`\n'
+        srcs = ', '.join(fin_data.get('sources', [])) if fin_data.get('sources') else 'N/A'
+        report += f'🔸 資料來源：`{srcs}`\n'
     else:
         report += '🏦 **籌碼面：**\n'
         report += f'🔸 籌碼摘要：`{fin_data.get("chips_summary", "N/A")}`\n'
@@ -1305,4 +1543,4 @@ def schedule_loop():
 if __name__ == '__main__':
     log('🤖 Stock Minervini Pro (Cross-Border Edition) 啟動中...')
     threading.Thread(target=schedule_loop, daemon=True).start()
-    if bot: bot.infinity_polling(timeout=60, long_polling_timeout=30)
+    start_telegram_polling()
