@@ -8,8 +8,11 @@ import threading
 import subprocess
 import traceback
 import sys
+import argparse
+import logging
 from io import StringIO
 from datetime import datetime
+from logging.handlers import RotatingFileHandler
 
 import matplotlib
 matplotlib.use('Agg')
@@ -20,17 +23,26 @@ from matplotlib.patches import Rectangle
 
 import numpy as np
 import pandas as pd
-import requests
 from playwright.sync_api import sync_playwright  
 import schedule
 import ta
-import telebot
-import yfinance as yf
 import joblib  
+
+from quant import data_sources as data_sources
+from quant.chip import calc_chip_score as shared_calc_chip_score
+from quant.fundamental import calc_fundamental_score as shared_calc_fundamental_score
+from quant.telegram_bot import create_telegram_bot, sanitize_telegram_error, validate_telegram_token
+
+FINMIND_TOKEN = os.environ.get('FINMIND_TOKEN', '').strip()
 
 try:
     from FinMind.data import DataLoader
     dl = DataLoader()
+    if FINMIND_TOKEN:
+        try:
+            dl.login_by_token(api_token=FINMIND_TOKEN)
+        except TypeError:
+            dl.login_by_token(FINMIND_TOKEN)
 except Exception as e:
     DataLoader = None
     dl = None
@@ -53,24 +65,19 @@ CHAT_ID = os.environ.get('TELEGRAM_CHAT_ID') or os.environ.get('CHAT_ID', '')
 TELEGRAM_POLLING_ENABLED = os.environ.get('TELEGRAM_POLLING_ENABLED', '1').strip().lower() not in ('0', 'false', 'no', 'off')
 USE_MACRO_MODEL = os.environ.get('USE_MACRO_MODEL', '0').strip().lower() in ('1', 'true', 'yes', 'on')
 
-if not TELEGRAM_TOKEN or not CHAT_ID:
-    print("⚠️ 找不到 TELEGRAM_TOKEN 或 TELEGRAM_CHAT_ID，Telegram bot will be disabled.")
-
-if TELEGRAM_TOKEN and ':' not in TELEGRAM_TOKEN:
-    print("⚠️ TELEGRAM_TOKEN format looks invalid. Telegram bot will be disabled.")
-    TELEGRAM_TOKEN = ''
-
 TEST_MODE = False
 HOLD_DAYS = 20
 
 REPORT_DIR = 'reports'
 MODEL_DIR = 'models'
 CONFIG_DIR = 'config'
+LOG_DIR = os.environ.get('LOG_DIR', 'logs')
+LOG_FILE = os.environ.get('LOG_FILE', os.path.join(LOG_DIR, 'quant_system.log'))
 
 MY_TW_COVERAGE_PATH = os.environ.get('MY_TW_COVERAGE_PATH', './My-TW-Coverage')
 
 MACRO_MODEL_PATH = os.path.join(MODEL_DIR, 'macro_rf_model.pkl')
-PARAMS_FILE_PATH = os.path.join(CONFIG_DIR, 'best_params.json')
+PARAMS_FILE_PATH = os.environ.get('SCORE_CONFIG_PATH', os.path.join(CONFIG_DIR, 'best_params.json'))
 
 GIT_PULL_TIMEOUT = 30
 FINANCIAL_UPDATE_TIMEOUT = 300
@@ -92,8 +99,40 @@ US_POOL_CACHE_PATH = os.path.join(CONFIG_DIR, 'us_stock_pool_cache.json')
 os.makedirs(REPORT_DIR, exist_ok=True)
 os.makedirs(MODEL_DIR, exist_ok=True)
 os.makedirs(CONFIG_DIR, exist_ok=True)
+os.makedirs(LOG_DIR, exist_ok=True)
 
-bot = telebot.TeleBot(TELEGRAM_TOKEN) if TELEGRAM_TOKEN and ':' in TELEGRAM_TOKEN else None
+LOGGER = logging.getLogger('quant_system')
+LOGGER.setLevel(logging.INFO)
+if not LOGGER.handlers:
+    log_handler = RotatingFileHandler(LOG_FILE, maxBytes=5_000_000, backupCount=5, encoding='utf-8')
+    log_handler.setFormatter(logging.Formatter('[%(asctime)s] %(levelname)s %(message)s'))
+    LOGGER.addHandler(log_handler)
+
+def now_str(): return datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
+def log(msg):
+    print(f'[{now_str()}] {msg}', flush=True)
+    try:
+        LOGGER.info(str(msg))
+    except Exception:
+        pass
+
+def log_exception(prefix, exc):
+    log(f'{prefix}: {sanitize_telegram_error(exc)}')
+    tb = traceback.format_exc()
+    print(tb, flush=True)
+    try:
+        LOGGER.error('%s\n%s', prefix, tb)
+    except Exception:
+        pass
+
+if not TELEGRAM_TOKEN or not CHAT_ID:
+    log("[Telegram] Bot disabled: TELEGRAM_TOKEN or TELEGRAM_CHAT_ID is missing.")
+elif not validate_telegram_token(TELEGRAM_TOKEN):
+    log("[Telegram] Bot disabled: TELEGRAM_TOKEN format is invalid.")
+    TELEGRAM_TOKEN = ''
+
+bot = create_telegram_bot(TELEGRAM_TOKEN, log=log) if TELEGRAM_TOKEN and CHAT_ID else None
 
 # ==========================================
 # Telegram sender
@@ -200,7 +239,7 @@ def check_market_status(region='TW'):
 
     try:
         index_ticker = '^TWII' if region == 'TW' else '^GSPC'
-        df = yf.download(index_ticker, period='18mo', progress=False, auto_adjust=True)
+        df = data_sources.download_yfinance(index_ticker, period='18mo', auto_adjust=True)
         if df.empty: return 'defensive', -0.1
         if isinstance(df.columns, pd.MultiIndex): df.columns = df.columns.droplevel(1)
         df['MA20'] = ta.trend.sma_indicator(df['Close'], 20)
@@ -352,10 +391,6 @@ def get_us_defensive_etf_pool():
 # ==========================================
 # Basic utilities
 # ==========================================
-def now_str(): return datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-def log(msg): print(f'[{now_str()}] {msg}', flush=True)
-def log_exception(prefix, exc): log(f'{prefix}: {exc}'); print(traceback.format_exc(), flush=True)
-
 def safe_float(v, default=None):
     try:
         if v is None: return default
@@ -378,6 +413,8 @@ def normalize_ticker(ticker):
     ticker = str(ticker).strip().upper()
     if ticker.isdigit() and len(ticker) == 4:
         return ticker + '.TW'
+    if not ticker.endswith(('.TW', '.TWO')):
+        ticker = ticker.replace('.', '-')
     return ticker
 
 def run_cmd(cmd, cwd, timeout_sec, step_name):
@@ -395,6 +432,20 @@ def update_my_tw_coverage(chat_id=None):
     
 def is_us_ticker(ticker):
     return not ticker.endswith(('.TW', '.TWO'))
+
+def configured_scan_universe(region):
+    raw = os.environ.get(f'SCAN_UNIVERSE_{region.upper()}', '').strip()
+    if not raw:
+        return []
+    tickers = []
+    for item in re.split(r'[,;\s]+', raw):
+        if not item.strip():
+            continue
+        ticker = normalize_ticker(item)
+        if region.upper() == 'US':
+            ticker = ticker.replace('.US', '').replace('.', '-')
+        tickers.append(ticker)
+    return list(dict.fromkeys(tickers))
 
 # ==========================================
 # Data collection
@@ -447,28 +498,11 @@ def get_company_profile(ticker_num, ticker_full=None, yf_info=None):
         return {'profile': '讀取失敗', 'industry': 'N/A', 'raw_text': None}
 
 def fetch_goodinfo_data(ticker_num):
-    url_main = f'https://goodinfo.tw/tw/StockDetail.asp?STOCK_ID={ticker_num}'
-    url_chip = f'https://goodinfo.tw/tw/ShowBuySaleChart.asp?STOCK_ID={ticker_num}&CHT_CAT=DATE'
-    main_html, chip_html = "", ""
     try:
-        with sync_playwright() as p:
-            browser = p.chromium.launch(headless=True)
-            context = browser.new_context(user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64)')
-            page = context.new_page()
-            try: page.goto(url_main, wait_until='domcontentloaded', timeout=15000)
-            except Exception: pass
-            page.wait_for_timeout(2000)
-            try: main_html = page.content()
-            except Exception: pass
-            
-            try: page.goto(url_chip, wait_until='domcontentloaded', timeout=15000)
-            except Exception: pass
-            page.wait_for_timeout(2000)
-            try: chip_html = page.content()
-            except Exception: pass
-            browser.close()
-    except Exception: pass
-    return main_html, chip_html
+        return data_sources.fetch_goodinfo_pages(ticker_num)
+    except Exception as e:
+        log(f"[Goodinfo-WARN] fetch failed for {ticker_num}: {e}")
+        return "", ""
 
 def parse_financials_from_mytwcoverage(md_text):
     result = {'eps_ttm': None, 'eps_latest_quarter': None, 'single_month_yoy': None, 'single_month_mom': None, 'source': []}
@@ -731,7 +765,8 @@ def get_tw_chip_data(ticker, days=10):
     try:
         end_date = datetime.now().strftime('%Y-%m-%d')
         start_date = (datetime.now() - pd.Timedelta(days=45)).strftime('%Y-%m-%d')
-        df = dl.taiwan_stock_institutional_investors(
+        df = data_sources.fetch_finmind_institutional_investors(
+            dl,
             stock_id=stock_id,
             start_date=start_date,
             end_date=end_date
@@ -779,7 +814,8 @@ def get_tw_chip_data(ticker, days=10):
             result['source'].append('FinMind-Chips')
 
     except Exception as e:
-        result['chips_summary'] = f'FinMind 籌碼讀取失敗: {e}'
+        result['chips_summary'] = f'FinMind 籌碼讀取失敗，已略過本次籌碼資料'
+        log(f"[FinMind-WARN] {stock_id}: {e}")
 
     return result
 
@@ -859,7 +895,13 @@ def get_nasdaq_screener_symbols(limit=US_POOL_MAX_CANDIDATES):
     for exchange in ['nasdaq', 'nyse', 'amex']:
         try:
             url = f'https://api.nasdaq.com/api/screener/stocks?tableonly=true&limit=5000&exchange={exchange}'
-            data = requests.get(url, headers=headers, timeout=20).json()
+            data = data_sources.get_json(
+                url,
+                headers=headers,
+                namespace='nasdaq_screener',
+                cache_key=exchange,
+                ttl_hours=24,
+            )
             rows = data.get('data', {}).get('table', {}).get('rows', [])
             rows.sort(key=lambda row: _parse_market_cap(row.get('marketCap')), reverse=True)
             for row in rows:
@@ -873,7 +915,7 @@ def get_nasdaq_screener_symbols(limit=US_POOL_MAX_CANDIDATES):
 
 def passes_us_liquidity_and_fundamental_filter(ticker, min_avg_volume=US_MIN_AVG_VOLUME):
     try:
-        df = yf.download(ticker, period='3mo', progress=False, auto_adjust=True)
+        df = data_sources.download_yfinance(ticker, period='3mo', auto_adjust=True)
         if df.empty or len(df) < 25: return False
         if isinstance(df.columns, pd.MultiIndex): df.columns = df.columns.droplevel(1)
         avg5 = float(df['Volume'].tail(5).mean())
@@ -881,7 +923,7 @@ def passes_us_liquidity_and_fundamental_filter(ticker, min_avg_volume=US_MIN_AVG
         if avg5 < min_avg_volume or avg20 < min_avg_volume:
             return False
 
-        info = yf.Ticker(ticker).info
+        info = data_sources.get_yahoo_info(ticker)
         quote_type = str(info.get('quoteType', '')).upper()
         if quote_type and quote_type not in ('EQUITY', 'ETF'):
             return False
@@ -906,13 +948,31 @@ def passes_us_liquidity_and_fundamental_filter(ticker, min_avg_volume=US_MIN_AVG
         return False
 
 def get_us_stock_pool():
+    configured = configured_scan_universe('US')
+    if configured:
+        log(f"[US-POOL] 使用 SCAN_UNIVERSE_US 設定 {len(configured)} 檔")
+        return configured
+
+    sqlite_cached = data_sources.cache.get('stock_pool', 'US')
+    if sqlite_cached:
+        log(f"[US-POOL] 使用 SQLite 快取股票池 {len(sqlite_cached)} 檔")
+        return sqlite_cached
+
     cached = _load_cached_us_pool()
-    if cached: return cached
+    if cached:
+        data_sources.cache.set('stock_pool', 'US', cached, US_POOL_CACHE_TTL_HOURS)
+        return cached
 
     try:
         headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'}
-        response = requests.get('https://en.wikipedia.org/wiki/List_of_S%26P_500_companies', headers=headers, timeout=15)
-        table = pd.read_html(StringIO(response.text))
+        html = data_sources.get_text(
+            'https://en.wikipedia.org/wiki/List_of_S%26P_500_companies',
+            headers=headers,
+            namespace='wikipedia',
+            cache_key='sp500_components',
+            ttl_hours=24,
+        )
+        table = pd.read_html(StringIO(html))
         sp500 = [_normalize_us_symbol(s) for s in table[0]['Symbol'].tolist()]
         sp500 = [s for s in sp500 if s]
     except Exception as e:
@@ -933,28 +993,47 @@ def get_us_stock_pool():
 
     if not filtered:
         filtered = ['AAPL', 'MSFT', 'NVDA', 'TSLA', 'AMZN', 'GOOGL', 'META', 'AMD', 'BRK-B', 'JPM']
+    data_sources.cache.set('stock_pool', 'US', filtered, US_POOL_CACHE_TTL_HOURS)
     _save_cached_us_pool(filtered)
     return filtered
 
 def get_tw_stock_pool(mode='offensive'):
+    configured = configured_scan_universe('TW')
+    if configured:
+        log(f"[TW-POOL] 使用 SCAN_UNIVERSE_TW 設定 {len(configured)} 檔")
+        return configured
+
+    sqlite_key = f"TW:{mode}"
+    sqlite_cached = data_sources.cache.get('stock_pool', sqlite_key)
+    if sqlite_cached:
+        log(f"[TW-POOL] 使用 SQLite 快取股票池 {len(sqlite_cached)} 檔")
+        return sqlite_cached
+
     tickers = []
     if mode == 'defensive': tickers.extend(get_defensive_etf_pool('TW'))
     for m in [2, 4]:
         try:
-            res = requests.get(f'https://isin.twse.com.tw/isin/C_public.jsp?strMode={m}', timeout=15)
-            df = pd.read_html(StringIO(res.text))[0]
+            html = data_sources.get_text(
+                f'https://isin.twse.com.tw/isin/C_public.jsp?strMode={m}',
+                namespace='twse_isin',
+                cache_key=f'mode_{m}',
+                ttl_hours=24,
+            )
+            df = pd.read_html(StringIO(html))[0]
             df.columns = df.iloc[0]
             valid_codes = df.iloc[1:][df.iloc[1:]['CFICode'] == 'ESVUFR']['有價證券代號及名稱'].str.extract(r'^([0-9]{4})\b')[0].dropna()
             tickers.extend((valid_codes + ('.TW' if m == 2 else '.TWO')).tolist())
         except Exception: pass
-    return list(set(tickers))
+    unique_tickers = list(set(tickers))
+    data_sources.cache.set('stock_pool', sqlite_key, unique_tickers, 24)
+    return unique_tickers
 
 def download_stock_df(ticker):
     ticker = normalize_ticker(ticker)
-    df = yf.download(ticker, period='5y', progress=False, auto_adjust=True)
+    df = data_sources.download_yfinance(ticker, period='5y', auto_adjust=True)
     if df.empty and ticker.endswith('.TW'):
         alt = ticker.replace('.TW', '.TWO')
-        df = yf.download(alt, period='5y', progress=False, auto_adjust=True)
+        df = data_sources.download_yfinance(alt, period='5y', auto_adjust=True)
         if not df.empty: ticker = alt
     if isinstance(df.columns, pd.MultiIndex): df.columns = df.columns.droplevel(1)
     return ticker, df
@@ -1051,65 +1130,10 @@ def evaluate_technical(df, market_mode='offensive'):
     }
 
 def calc_fundamental_score(f, is_us=False):
-    score = 0
-    syoy = f.get('single_month_yoy')
-    smom = f.get('single_month_mom')
-    eq = f.get('eps_latest_quarter')
-    ettm = f.get('eps_ttm')
-    profit_margin = f.get('profit_margin_pct')
-    earnings_growth = f.get('earnings_growth_pct')
-
-    if syoy is not None: score += 25 if syoy >= 30 else (18 if syoy >= 15 else (10 if syoy >= 5 else (-10 if syoy < 0 else 0)))
-    if smom is not None: score += 16 if smom >= 20 else (10 if smom >= 5 else (5 if smom >= 0 else -6))
-    if eq is not None: score += 18 if eq >= 20 else (14 if eq >= 10 else (8 if eq > 0 else -8))
-    if ettm is not None: score += 20 if ettm >= 40 else (14 if ettm >= 20 else (8 if ettm > 0 else -8))
-    if is_us and profit_margin is not None: score += 16 if profit_margin >= 20 else (10 if profit_margin >= 10 else (5 if profit_margin > 0 else -8))
-    if is_us and earnings_growth is not None: score += 14 if earnings_growth >= 25 else (9 if earnings_growth >= 5 else (3 if earnings_growth > 0 else -6))
-    if is_us and score < 30 and (syoy is not None or ettm is not None): score += 20 
-    return max(0, min(score, 100))
+    return shared_calc_fundamental_score(f, is_us)
 
 def calc_chip_score(f, is_us=False):
-    if is_us:
-        score = 0
-        institutional = f.get('institutional_ownership_pct')
-        short_float = f.get('short_percent_float')
-        short_ratio = f.get('short_ratio')
-        avg_volume = f.get('avg_volume_3m')
-        avg_volume_10d = f.get('avg_volume_10d')
-        latest_volume = f.get('latest_volume')
-
-        if institutional is not None:
-            if 20 <= institutional <= 85: score += 26
-            elif 10 <= institutional < 20 or 85 < institutional <= 95: score += 16
-            elif institutional > 95: score += 8
-        if short_float is not None:
-            if short_float < 5: score += 24
-            elif short_float < 10: score += 16
-            elif short_float < 20: score += 6
-            else: score -= 12
-        if short_ratio is not None:
-            if short_ratio < 3: score += 16
-            elif short_ratio < 6: score += 8
-            elif short_ratio > 10: score -= 8
-        if avg_volume is not None:
-            if avg_volume >= 10_000_000: score += 18
-            elif avg_volume >= US_MIN_AVG_VOLUME: score += 12
-        if avg_volume and latest_volume:
-            rel_vol = latest_volume / avg_volume
-            if rel_vol >= 1.5: score += 16
-            elif rel_vol >= 1.0: score += 10
-            elif rel_vol < 0.6: score -= 6
-        if avg_volume and avg_volume_10d and avg_volume_10d > avg_volume * 1.15:
-            score += 8
-        return max(0, min(score, 100))
-
-    score = 0
-    t2, t5, t10, f5 = f.get('total_2d'), f.get('total_5d'), f.get('total_10d'), f.get('foreign_5d')
-    if t2 is not None: score += 12 if t2 > 0 else -6
-    if t5 is not None: score += 24 if t5 > 5000 else (18 if t5 > 1000 else (10 if t5 > 0 else (-16 if t5 < -5000 else -8)))
-    if t10 is not None: score += 14 if t10 > 0 else -8
-    if f5 is not None: score += 10 if f5 > 0 else -5
-    return max(0, min(score, 100))
+    return shared_calc_chip_score(f, is_us)
 
 def final_total_score(t, f, c, is_us=False):
     tech_w = max(0.0, float(SYS_PARAMS.get('tech_weight', WEIGHT_TECH)))
@@ -1362,7 +1386,7 @@ def analyze_stock(ticker, market_mode='offensive', silent=False):
         tech_pack = evaluate_technical(df, market_mode)
         
         is_us = is_us_ticker(ticker)
-        yf_info = yf.Ticker(ticker).info if not TEST_MODE else {}
+        yf_info = data_sources.get_yahoo_info(ticker) if not TEST_MODE else {}
         ticker_num = ticker.split('.')[0]
         
         profile_info = get_company_profile(ticker_num, ticker_full=ticker, yf_info=yf_info)
@@ -1420,7 +1444,7 @@ def scan_and_rank_market(chat_id=None, requested_by_user=False, market_mode='off
         ticker = item['ticker']
         try:
             is_us = is_us_ticker(ticker)
-            yf_info = yf.Ticker(ticker).info
+            yf_info = data_sources.get_yahoo_info(ticker)
             ticker_num = ticker.split('.')[0]
             
             profile_info = get_company_profile(ticker_num, ticker_full=ticker, yf_info=yf_info)
@@ -1540,7 +1564,62 @@ def schedule_loop():
     
     while True: schedule.run_pending(); time.sleep(1)
 
+def parse_cli_args(argv=None):
+    parser = argparse.ArgumentParser(description='Stock Minervini Pro scanner and Telegram bot.')
+    parser.add_argument('--scan', choices=['tw', 'us'], help='Run a one-shot market scan without Telegram polling.')
+    parser.add_argument('--ticker', help='Run a one-shot single ticker report without Telegram polling.')
+    parser.add_argument('--market-mode', choices=['auto', 'offensive', 'defensive'], default='auto')
+    parser.add_argument('--no-bot', action='store_true', help='Do not start Telegram polling or scheduler.')
+    parser.add_argument('--test-mode', action='store_true', help='Limit scan universe for fast smoke tests.')
+    return parser.parse_args(argv)
+
+def run_cli_command(args):
+    global TEST_MODE
+    if args.test_mode:
+        TEST_MODE = True
+
+    if args.ticker:
+        ticker = normalize_ticker(args.ticker)
+        region = 'US' if is_us_ticker(ticker) else 'TW'
+        market_mode = args.market_mode
+        if market_mode == 'auto':
+            market_mode, macro_score = check_market_status(region)
+        else:
+            macro_score = 0.0
+        print(f"[CLI] ticker={ticker} region={region} mode={market_mode} macro_score={macro_score:.2f}", flush=True)
+        report, img_path, strategy_img_path = analyze_stock(ticker, market_mode)
+        if report:
+            print(report, flush=True)
+        if img_path:
+            print(f"[CLI] chart={img_path}", flush=True)
+        if strategy_img_path:
+            print(f"[CLI] strategy_card={strategy_img_path}", flush=True)
+        return True
+
+    if args.scan:
+        region = args.scan.upper()
+        market_mode = args.market_mode
+        if market_mode == 'auto':
+            market_mode, macro_score = check_market_status(region)
+        else:
+            macro_score = 0.0
+        print(f"[CLI] scan={region} mode={market_mode} macro_score={macro_score:.2f}", flush=True)
+        ranked = scan_and_rank_market(None, False, market_mode, region)
+        if not ranked:
+            print("[CLI] no qualified stocks", flush=True)
+            return True
+        for idx, item in enumerate(ranked, start=1):
+            print(f"{idx}. {item['ticker']} total_score={item['total_score']:.1f}", flush=True)
+        return True
+
+    return args.no_bot
+
 if __name__ == '__main__':
+    cli_args = parse_cli_args()
+    if run_cli_command(cli_args):
+        log('CLI/no-bot command finished; Telegram polling not started.')
+        sys.exit(0)
+
     log('🤖 Stock Minervini Pro (Cross-Border Edition) 啟動中...')
     threading.Thread(target=schedule_loop, daemon=True).start()
     start_telegram_polling()

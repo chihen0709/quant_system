@@ -18,5 +18,7 @@ RUN playwright install chromium
 # Copy the application code into the container.
 COPY . .
 
+HEALTHCHECK --interval=60s --timeout=20s --start-period=30s --retries=3 CMD ["python", "healthcheck.py"]
+
 # Default command.
 CMD ["python", "quant_pro.py"]

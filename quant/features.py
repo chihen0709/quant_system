@@ -6,9 +6,9 @@ import os
 from typing import Any
 
 import pandas as pd
-import yfinance as yf
 
 from .bollinger import add_bollinger_features
+from .data_sources import download_yfinance
 from .scoring import add_hybrid_score
 from .technical import add_technical_indicators, ensure_ohlcv
 from .vcp import add_vcp_features
@@ -44,14 +44,16 @@ def normalize_ticker(ticker: str, market: str | None = None) -> str:
     m = infer_market(t, market)
     if m == "TW" and t.isdigit():
         return f"{t}.TW"
+    if m == "US":
+        return t.replace(".", "-")
     return t
 
 
 def download_ohlcv(ticker: str, start: str | None = None, end: str | None = None) -> pd.DataFrame:
     if start or end:
-        df = yf.download(ticker, start=start, end=end, auto_adjust=True, progress=False)
+        df = download_yfinance(ticker, start=start, end=end, auto_adjust=True)
     else:
-        df = yf.download(ticker, period="5y", auto_adjust=True, progress=False)
+        df = download_yfinance(ticker, period="5y", auto_adjust=True)
     return ensure_ohlcv(df)
 
 
@@ -84,7 +86,7 @@ def build_feature_frame(
     out = add_bollinger_features(out)
 
     _assign_score(out, "fund_score", fund_score, 0.0)
-    _assign_score(out, "chip_score", chip_score if market == "TW" else 0.0, 0.0)
+    _assign_score(out, "chip_score", chip_score, 0.0)
 
     out["dl_signal"] = 0.5
     out["trend_probability"] = out["trend_score"].clip(0, 1)
