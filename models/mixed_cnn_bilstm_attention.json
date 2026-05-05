@@ -2,33 +2,33 @@
   "history": [
     {
       "epoch": 1,
-      "train_loss": 0.8092519064504625,
-      "val_loss": 0.8629107475280762
+      "train_loss": 0.8339386029341787,
+      "val_loss": 0.8764099478721619
     },
     {
       "epoch": 2,
-      "train_loss": 0.7774007593648691,
-      "val_loss": 0.888717532157898
+      "train_loss": 0.804202526746337,
+      "val_loss": 0.8864288330078125
     },
     {
       "epoch": 3,
-      "train_loss": 0.7323725512138904,
-      "val_loss": 0.9442573189735413
+      "train_loss": 0.7831354647567592,
+      "val_loss": 0.8818337321281433
     },
     {
       "epoch": 4,
-      "train_loss": 0.6931587183634854,
-      "val_loss": 0.9812973141670227
+      "train_loss": 0.7689561395301032,
+      "val_loss": 0.8921627402305603
     },
     {
       "epoch": 5,
-      "train_loss": 0.6519569509535454,
-      "val_loss": 1.0612601041793823
+      "train_loss": 0.7492325761883529,
+      "val_loss": 0.9069181084632874
     }
   ],
   "artifact_path": "models/mixed_cnn_bilstm_attention.pt",
-  "train_sequences": 6134,
-  "val_sequences": 1534,
+  "train_sequences": 15520,
+  "val_sequences": 3888,
   "feature_count": 17,
   "validation_fraction": 0.2,
   "early_stopping_patience": 4

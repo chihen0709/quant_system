@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import warnings
 from dataclasses import dataclass
 from typing import Iterable
 
@@ -460,7 +461,14 @@ def train_dl_model(
 def predict_dl_signals(df: pd.DataFrame, model_path: str) -> pd.DataFrame:
     """Return dl_signal and probability columns aligned to the input frame index."""
     _require_torch()
-    checkpoint = torch.load(model_path, map_location="cpu")
+    try:
+        checkpoint = torch.load(model_path, map_location="cpu", weights_only=True)
+    except TypeError:
+        checkpoint = torch.load(model_path, map_location="cpu")
+    except Exception:
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", message=r"You are using `torch.load` with `weights_only=False`.*")
+            checkpoint = torch.load(model_path, map_location="cpu", weights_only=False)
     feature_columns = checkpoint["feature_columns"]
     sequence_length = int(checkpoint["sequence_length"])
     mean = np.asarray(checkpoint["scaler"]["mean"], dtype=np.float32)

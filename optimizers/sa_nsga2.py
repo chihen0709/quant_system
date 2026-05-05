@@ -194,7 +194,9 @@ def _predict_fitness(surrogates, individual) -> tuple[tuple[float, float, float,
 def _build_feature_frames(config: dict[str, Any]) -> dict[str, Any]:
     frames = {}
     weights = {name: config.get(name) for name, _, _, _ in SEARCH_SPACE if name.endswith("_weight")}
-    for ticker in config.get("tickers", DEFAULT_CONFIG["tickers"]):
+    tickers = config.get("tickers", DEFAULT_CONFIG["tickers"])
+    for idx, ticker in enumerate(tickers, start=1):
+        print(f"[SA-NSGA2] ({idx}/{len(tickers)}) building features for {ticker}...", flush=True)
         frame = build_feature_frame(
             ticker,
             start=config.get("start"),
@@ -203,6 +205,7 @@ def _build_feature_frames(config: dict[str, Any]) -> dict[str, Any]:
             model_path=config.get("model_path"),
         )
         frames[ticker] = frame
+        print(f"[SA-NSGA2] ({idx}/{len(tickers)}) {ticker}: {len(frame)} bars ready", flush=True)
     return frames
 
 

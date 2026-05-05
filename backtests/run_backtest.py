@@ -215,10 +215,12 @@ def main() -> None:
     parser.add_argument("--folds", type=int, default=1)
     args = parser.parse_args()
 
-    frames = {
-        ticker: build_feature_frame(ticker, start=args.start, end=args.end, model_path=args.model_path)
-        for ticker in args.tickers
-    }
+    frames = {}
+    for idx, ticker in enumerate(args.tickers, start=1):
+        print(f"[BACKTEST] ({idx}/{len(args.tickers)}) building features for {ticker}...", flush=True)
+        frames[ticker] = build_feature_frame(ticker, start=args.start, end=args.end, model_path=args.model_path)
+        print(f"[BACKTEST] ({idx}/{len(args.tickers)}) {ticker}: {len(frames[ticker])} bars ready", flush=True)
+    print("[BACKTEST] running walk-forward backtest...", flush=True)
     metrics = run_walk_forward_backtest(
         frames,
         {
