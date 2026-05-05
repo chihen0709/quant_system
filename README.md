@@ -58,21 +58,63 @@ Add your Telegram bot settings:
 ```env
 TELEGRAM_TOKEN=YOUR_BOT_TOKEN
 TELEGRAM_CHAT_ID=YOUR_CHAT_ID
+TELEGRAM_POLLING_ENABLED=1
+FINMIND_TOKEN=YOUR_FINMIND_TOKEN
 MY_TW_COVERAGE_PATH=/path/to/your/My-TW-Coverage
+HTTP_TIMEOUT_SEC=20
+HTTP_RETRIES=3
+HTTP_BACKOFF_SEC=1.5
+GOODINFO_MIN_INTERVAL_SEC=3
+FINMIND_MIN_INTERVAL_SEC=2
+EXTERNAL_CACHE_PATH=config/external_cache.sqlite3
+EXTERNAL_CACHE_TTL_HOURS=12
+SCORE_CONFIG_PATH=config/best_params.json
+# Optional comma-separated universes:
+# SCAN_UNIVERSE_TW=2330,2454
+# SCAN_UNIVERSE_US=AAPL,NVDA,BRK-B
 ```
 
 Example:
 
 ```env
-TELEGRAM_TOKEN=1234567890:AAxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-TELEGRAM_CHAT_ID=7255083299
+TELEGRAM_TOKEN=YOUR_NUMERIC_BOT_ID:YOUR_BOT_SECRET
+TELEGRAM_CHAT_ID=YOUR_TELEGRAM_CHAT_ID
+TELEGRAM_POLLING_ENABLED=1
 MY_TW_COVERAGE_PATH=/home/YOUR_USERNAME/My-TW-Coverage
 ```
+
+Only one running process can poll a Telegram bot token. If this machine is only
+for training, backtesting, or optimization, set:
+
+```env
+TELEGRAM_POLLING_ENABLED=0
+```
+
+This prevents Telegram `409 Conflict: terminated by other getUpdates request`
+errors while keeping local research commands usable.
 
 ### 3. Run with Docker
 
 ```bash
-docker-compose up -d --build
+COMPOSE_FILE=docker-compose.yml docker compose up -d --build
+```
+
+For NVIDIA GPU training inside Docker, first install NVIDIA Container Toolkit
+in the VM/host, then build with the GPU override:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.gpu.yml up -d --build
+docker exec -it stock_minervini_bot python -c "import torch; print(torch.cuda.is_available(), torch.cuda.get_device_name(0) if torch.cuda.is_available() else 'CPU')"
+```
+
+If the command prints `True`, `python -m quant.dl ...` will train on CUDA.
+If Docker reports `could not select device driver "" with capabilities: [[gpu]]`,
+the host cannot provide an NVIDIA GPU runtime. Use the default CPU container
+instead:
+
+```bash
+docker compose down
+COMPOSE_FILE=docker-compose.yml docker compose up -d --build
 ```
 
 Check logs:
@@ -116,7 +158,7 @@ Telegram → Search BotFather → /newbot
 BotFather will return a token with this format:
 
 ```text
-1234567890:AAxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+<numeric_bot_id>:<bot_secret>
 ```
 
 The token must contain a colon `:`. If the token does not contain a colon, it is incomplete or incorrect.
@@ -124,7 +166,7 @@ The token must contain a colon `:`. If the token does not contain a colon, it is
 Add it to `.env`:
 
 ```env
-TELEGRAM_TOKEN=1234567890:AAxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+TELEGRAM_TOKEN=YOUR_NUMERIC_BOT_ID:YOUR_BOT_SECRET
 ```
 
 ### Telegram Chat ID
@@ -132,7 +174,7 @@ TELEGRAM_TOKEN=1234567890:AAxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 Set your chat ID in `.env`:
 
 ```env
-TELEGRAM_CHAT_ID=7255083299
+TELEGRAM_CHAT_ID=YOUR_TELEGRAM_CHAT_ID
 ```
 
 If you do not know your chat ID, you can get it from Telegram helper bots such as `userinfobot`, or by checking the Telegram Bot API update response after sending a message to your bot.
@@ -174,7 +216,7 @@ Also make sure you have created the `.env` file described above.
 ### Build and Start
 
 ```bash
-docker-compose up -d --build
+COMPOSE_FILE=docker-compose.yml docker compose up -d --build
 ```
 
 ### View Logs
@@ -186,20 +228,20 @@ docker logs -f stock_minervini_bot
 ### Stop
 
 ```bash
-docker-compose down
+docker compose down
 ```
 
 ### Restart
 
 ```bash
-docker-compose restart
+docker compose restart
 ```
 
 ### Rebuild After Code Changes
 
 ```bash
-docker-compose down
-docker-compose up -d --build
+docker compose down
+COMPOSE_FILE=docker-compose.yml docker compose up -d --build
 ```
 
 ### Run Commands Inside Container
@@ -276,6 +318,7 @@ Install Python dependencies:
 
 ```bash
 pip install -r requirements.txt
+pip install -r requirements-dl-cpu.txt
 ```
 
 Install Playwright browser dependency:
@@ -617,12 +660,16 @@ venv/
 
 # Reports and runtime output
 reports/
-system_log.txt
+logs/
 *.log
+*.sqlite3
+*.sqlite3-shm
+*.sqlite3-wal
 
 # Model and config outputs
 models/*.pkl
-config/best_params.json
+models/*.pt
+models/*.pth
 
 # OS / editor
 .DS_Store
@@ -634,20 +681,20 @@ config/best_params.json
 
 ### High Priority
 
-- [ ] Move all sensitive values to `.env`
-- [ ] Make sure `.env` is included in `.gitignore`
-- [ ] Add validation for Telegram token format
-- [ ] Add safer error messages when Telegram bot initialization fails
-- [ ] Add retry and timeout handling for all external data sources
-- [ ] Add rate limit protection for Goodinfo / FinMind requests
-- [ ] Add unit tests for ticker normalization and scoring logic
-- [ ] Add VCP detection module
-- [ ] Add Bollinger Band squeeze and breakout module
-- [ ] Add Minervini trend template as a reusable hard filter
+- [x] Move all sensitive values to `.env`
+- [x] Make sure `.env` is included in `.gitignore`
+- [x] Add validation for Telegram token format
+- [x] Add safer error messages when Telegram bot initialization fails
+- [x] Add retry and timeout handling for all external data sources
+- [x] Add rate limit protection for Goodinfo / FinMind requests
+- [x] Add unit tests for ticker normalization and scoring logic
+- [x] Add VCP detection module
+- [x] Add Bollinger Band squeeze and breakout module
+- [x] Add Minervini trend template as a reusable hard filter
 
 ### Medium Priority
 
-- [ ] Refactor `quant_pro.py` into smaller modules
+- [x] Refactor `quant_pro.py` into smaller modules
   - `data_sources.py`
   - `technical.py`
   - `vcp.py`
@@ -658,17 +705,17 @@ config/best_params.json
   - `risk.py`
   - `report.py`
   - `telegram_bot.py`
-- [ ] Add CLI arguments, for example:
+- [x] Add CLI arguments, for example:
   - `python quant_pro.py --scan tw`
   - `python quant_pro.py --scan us`
   - `python quant_pro.py --ticker 2330`
-- [ ] Add configurable scan universe
-- [ ] Add configurable score weights
-- [ ] Add SQLite or CSV cache for external API results
-- [ ] Add logging rotation for long-running deployment
-- [ ] Add Docker healthcheck
-- [ ] Add Backtrader custom data feed for hybrid signals
-- [ ] Add GA + GPR + EI optimizer integration
+- [x] Add configurable scan universe
+- [x] Add configurable score weights
+- [x] Add SQLite or CSV cache for external API results
+- [x] Add logging rotation for long-running deployment
+- [x] Add Docker healthcheck
+- [x] Add Backtrader custom data feed for hybrid signals
+- [x] Add GA + GPR + EI optimizer integration
 
 ### Low Priority
 

@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   quant_bot:
     build: .
@@ -16,5 +14,6 @@ services:
       - ./reports:/app/reports
       - ./models:/app/models
       - ./config:/app/config
+      - ./logs:/app/logs
       # Keep My-TW-Coverage next to quant_system.
       - ../My-TW-Coverage:/app/My-TW-Coverage

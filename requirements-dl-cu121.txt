@@ -1,0 +1,4 @@
+# Optional NVIDIA GPU PyTorch build. Use with Dockerfile.gpu and a host/VM that
+# has NVIDIA drivers plus NVIDIA Container Toolkit installed.
+--extra-index-url https://download.pytorch.org/whl/cu121
+torch==2.5.1+cu121

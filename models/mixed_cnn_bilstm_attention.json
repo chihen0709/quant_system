@@ -1,0 +1,35 @@
+{
+  "history": [
+    {
+      "epoch": 1,
+      "train_loss": 0.8339386029341787,
+      "val_loss": 0.8764099478721619
+    },
+    {
+      "epoch": 2,
+      "train_loss": 0.804202526746337,
+      "val_loss": 0.8864288330078125
+    },
+    {
+      "epoch": 3,
+      "train_loss": 0.7831354647567592,
+      "val_loss": 0.8818337321281433
+    },
+    {
+      "epoch": 4,
+      "train_loss": 0.7689561395301032,
+      "val_loss": 0.8921627402305603
+    },
+    {
+      "epoch": 5,
+      "train_loss": 0.7492325761883529,
+      "val_loss": 0.9069181084632874
+    }
+  ],
+  "artifact_path": "models/mixed_cnn_bilstm_attention.pt",
+  "train_sequences": 15520,
+  "val_sequences": 3888,
+  "feature_count": 17,
+  "validation_fraction": 0.2,
+  "early_stopping_patience": 4
+}

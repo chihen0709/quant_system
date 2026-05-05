@@ -8,6 +8,7 @@ import math
 import os
 import random
 import sys
+import warnings
 from pathlib import Path
 from typing import Any
 
@@ -149,6 +150,7 @@ def _fit_surrogates(archive: list[dict[str, Any]]):
     try:
         from sklearn.gaussian_process import GaussianProcessRegressor
         from sklearn.gaussian_process.kernels import ConstantKernel, Matern, WhiteKernel
+        from sklearn.exceptions import ConvergenceWarning
         from sklearn.preprocessing import StandardScaler
     except Exception:
         return None
@@ -157,11 +159,22 @@ def _fit_surrogates(archive: list[dict[str, Any]]):
     y = np.asarray([item["fitness"] for item in archive], dtype=float)
     x_scaler = StandardScaler()
     x_scaled = x_scaler.fit_transform(x)
-    kernel = ConstantKernel(1.0, (1e-3, 1e3)) * Matern(nu=2.5) + WhiteKernel(noise_level=1e-5)
+    kernel = ConstantKernel(1.0, (1e-3, 1e3)) * Matern(nu=2.5) + WhiteKernel(
+        noise_level=1e-4,
+        noise_level_bounds=(1e-8, 1e1),
+    )
     models = []
     for objective_idx in range(y.shape[1]):
-        model = GaussianProcessRegressor(kernel=kernel, normalize_y=True, random_state=17, n_restarts_optimizer=0)
-        model.fit(x_scaled, y[:, objective_idx])
+        model = GaussianProcessRegressor(
+            kernel=kernel,
+            alpha=1e-6,
+            normalize_y=True,
+            random_state=17,
+            n_restarts_optimizer=0,
+        )
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", category=ConvergenceWarning)
+            model.fit(x_scaled, y[:, objective_idx])
         models.append(model)
     return x_scaler, models
 
@@ -181,7 +194,9 @@ def _predict_fitness(surrogates, individual) -> tuple[tuple[float, float, float,
 def _build_feature_frames(config: dict[str, Any]) -> dict[str, Any]:
     frames = {}
     weights = {name: config.get(name) for name, _, _, _ in SEARCH_SPACE if name.endswith("_weight")}
-    for ticker in config.get("tickers", DEFAULT_CONFIG["tickers"]):
+    tickers = config.get("tickers", DEFAULT_CONFIG["tickers"])
+    for idx, ticker in enumerate(tickers, start=1):
+        print(f"[SA-NSGA2] ({idx}/{len(tickers)}) building features for {ticker}...", flush=True)
         frame = build_feature_frame(
             ticker,
             start=config.get("start"),
@@ -190,6 +205,7 @@ def _build_feature_frames(config: dict[str, Any]) -> dict[str, Any]:
             model_path=config.get("model_path"),
         )
         frames[ticker] = frame
+        print(f"[SA-NSGA2] ({idx}/{len(tickers)}) {ticker}: {len(frame)} bars ready", flush=True)
     return frames
 
 

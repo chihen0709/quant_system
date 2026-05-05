@@ -1,0 +1,9 @@
+services:
+  quant_bot:
+    build:
+      context: .
+      dockerfile: Dockerfile.gpu
+    gpus: all
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
