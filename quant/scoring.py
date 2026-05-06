@@ -7,12 +7,14 @@ import pandas as pd
 
 
 DEFAULT_WEIGHTS = {
-    "tech_weight": 0.35,
-    "vcp_weight": 0.15,
+    "tech_weight": 0.28,
+    "vcp_weight": 0.13,
     "bb_weight": 0.10,
-    "fund_weight": 0.10,
+    "cta_weight": 0.10,
+    "pattern_weight": 0.06,
+    "fund_weight": 0.09,
     "chip_weight": 0.05,
-    "ml_weight": 0.25,
+    "ml_weight": 0.19,
 }
 
 
@@ -51,6 +53,18 @@ def add_hybrid_score(df: pd.DataFrame, weights: dict | None = None) -> pd.DataFr
         out["fund_score"] = 0.0
     if "chip_score" not in out.columns:
         out["chip_score"] = 0.0
+    if "cta_score" not in out.columns:
+        cta_cols = [
+            col for col in ("close_box_breakout", "engulfing_5d", "bb_squeeze_breakout", "bb_momentum_breakout")
+            if col in out.columns
+        ]
+        out["cta_score"] = out[cta_cols].max(axis=1) if cta_cols else 0.0
+    if "pattern_score" not in out.columns:
+        pattern_cols = [
+            col for col in ("triangle_contraction_score", "inverse_head_shoulders_score")
+            if col in out.columns
+        ]
+        out["pattern_score"] = out[pattern_cols].max(axis=1) if pattern_cols else 0.0
     if "dl_signal" not in out.columns:
         out["dl_signal"] = 0.5
 
@@ -58,6 +72,8 @@ def add_hybrid_score(df: pd.DataFrame, weights: dict | None = None) -> pd.DataFr
         "tech_weight": _unit_series(out["trend_score"]),
         "vcp_weight": _unit_series(out["vcp_score"]),
         "bb_weight": _unit_series(out["bb_score"]),
+        "cta_weight": _unit_series(out["cta_score"]),
+        "pattern_weight": _unit_series(out["pattern_score"]),
         "fund_weight": _unit_series(out["fund_score"]),
         "chip_weight": _unit_series(out["chip_score"]),
         "ml_weight": _unit_series(out["dl_signal"]),

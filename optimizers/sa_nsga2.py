@@ -26,6 +26,8 @@ SEARCH_SPACE = [
     ("tech_weight", 0.05, 0.65, "float"),
     ("vcp_weight", 0.00, 0.40, "float"),
     ("bb_weight", 0.00, 0.35, "float"),
+    ("cta_weight", 0.00, 0.35, "float"),
+    ("pattern_weight", 0.00, 0.25, "float"),
     ("fund_weight", 0.00, 0.35, "float"),
     ("chip_weight", 0.00, 0.25, "float"),
     ("ml_weight", 0.00, 0.55, "float"),
