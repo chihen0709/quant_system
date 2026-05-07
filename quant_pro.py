@@ -30,7 +30,11 @@ import joblib
 
 from quant import data_sources as data_sources
 from quant.chip import calc_chip_score as shared_calc_chip_score
+from quant.cta import add_cta_features, row_strategy_tags
+from quant.dashboard import render_top_ranked_dashboard
 from quant.fundamental import calc_fundamental_score as shared_calc_fundamental_score
+from quant.patterns import add_pattern_features
+from quant.sector import annotate_sector_strength
 from quant.telegram_bot import create_telegram_bot, sanitize_telegram_error, validate_telegram_token
 
 FINMIND_TOKEN = os.environ.get('FINMIND_TOKEN', '').strip()
@@ -1043,12 +1047,19 @@ def compute_indicators(df):
     for win in [5, 20, 50, 60, 150, 200, 240]: df[f'MA{win}'] = ta.trend.sma_indicator(df['Close'], win)
     df['High52W'] = df['High'].rolling(250).max()
     df['Low52W'] = df['Low'].rolling(250).min()
-    df['BBMid'] = ta.volatility.bollinger_mavg(df['Close'], 20)
     df['RSI'] = ta.momentum.rsi(df['Close'], 14)
     macd = ta.trend.MACD(df['Close'])
     df['MACD'], df['MACD_Signal'], df['MACD_Osc'] = macd.macd(), macd.macd_signal(), macd.macd_diff()
+    bb = ta.volatility.BollingerBands(close=df['Close'], window=20, window_dev=2)
+    df['BBMid'] = bb.bollinger_mavg()
+    df['BBUpper'] = bb.bollinger_hband()
+    df['BBLower'] = bb.bollinger_lband()
+    df['BBWidth'] = np.where(df['BBMid'] != 0, (df['BBUpper'] - df['BBLower']) / df['BBMid'], np.nan)
     for ma in [5, 20, 60, 240]:
         df[f'BIAS{ma}'] = np.where(df[f'MA{ma}'] != 0, (df['Close'] - df[f'MA{ma}']) / df[f'MA{ma}'] * 100, np.nan)
+    df['volume_avg20'] = df['Volume'].rolling(20, min_periods=10).mean()
+    df = add_cta_features(df)
+    df = add_pattern_features(df)
     return df
 
 def evaluate_technical(df, market_mode='offensive'):
@@ -1070,6 +1081,14 @@ def evaluate_technical(df, market_mode='offensive'):
     c5 = bool(latest['Volume'] > 500_000) 
     c6 = bool(latest['Close'] > latest['MA5'] > latest['MA20'] > latest['MA60']) if not pd.isna(latest['MA60']) else False
     c7 = bool(latest['Close'] > latest['MA240']) if not pd.isna(latest['MA240']) else False
+    c_engulfing_5d = bool(latest.get('engulfing_5d', 0))
+    c_box_breakout = bool(latest.get('close_box_breakout', 0))
+    c_bb_squeeze_breakout = bool(latest.get('bb_squeeze_breakout', 0))
+    c_bb_momentum_breakout = bool(latest.get('bb_momentum_breakout', 0))
+    triangle_score = safe_float(latest.get('triangle_contraction_score'), 0.0) or 0.0
+    inverse_hs_score = safe_float(latest.get('inverse_head_shoulders_score'), 0.0) or 0.0
+    c_triangle = triangle_score >= 0.65
+    c_inverse_hs = inverse_hs_score >= 0.65
 
     weekly = compute_indicators(df[['Open', 'High', 'Low', 'Close', 'Volume']].resample('W-FRI').agg({'Open':'first', 'High':'max', 'Low':'min', 'Close':'last', 'Volume':'sum'}).dropna())
     monthly = compute_indicators(df[['Open', 'High', 'Low', 'Close', 'Volume']].resample('ME').agg({'Open':'first', 'High':'max', 'Low':'min', 'Close':'last', 'Volume':'sum'}).dropna())
@@ -1085,6 +1104,12 @@ def evaluate_technical(df, market_mode='offensive'):
     score = 0
     if market_mode == 'offensive':
         score = sum([16*c1, 10*c2, 10*c3, 12*c4, 8*c5, 8*c6, 6*c7, 8*wk_up, 5*mo_up, 9*wk_macd_pos, 6*mo_macd_pos])
+        if c_box_breakout: score += 15
+        if c_engulfing_5d: score += 10
+        if c_bb_squeeze_breakout: score += 12
+        if c_bb_momentum_breakout: score += 8
+        if c_triangle: score += 5
+        if c_inverse_hs: score += 5
         if bias20 is not None:
             if 0 <= bias20 <= 8: score += 6
             elif 8 < bias20 <= 15: score += 3
@@ -1112,10 +1137,25 @@ def evaluate_technical(df, market_mode='offensive'):
     vcp_score = safe_float(latest.get('vcp_score'), 0.0) or 0.0
     bb_breakout = bool(latest.get('bb_breakout', 0))
     bb_width_pctile = safe_float(latest.get('bb_width_pctile'))
+    strategy_tags = row_strategy_tags(latest)
+    if vcp_score >= 0.65: strategy_tags.append('VCP量縮收斂')
+    if bb_breakout: strategy_tags.append('BB帶量突破')
+    if c_triangle: strategy_tags.append('收斂三角')
+    if c_inverse_hs: strategy_tags.append('頭肩底雛形')
 
     return {
         'df': df, 'weekly': weekly, 'monthly': monthly, 'technical_score': technical_score, 'latest': latest, 'mode': market_mode,
-        'conditions': {'trend_stack': c1, 'off_bottom': c2, 'near_high': c3, 'momentum': c4, 'liquidity': c5, 'short_mid_ma_stack': c6, 'above_ma240': c7, 'weekly_up': wk_up, 'monthly_up': mo_up, 'weekly_macd_positive': wk_macd_pos, 'monthly_macd_positive': mo_macd_pos, 'vcp_setup': vcp_score >= 0.65, 'bb_breakout': bb_breakout},
+        'strategy_tags': strategy_tags,
+        'conditions': {
+            'trend_stack': c1, 'off_bottom': c2, 'near_high': c3, 'momentum': c4, 'liquidity': c5,
+            'short_mid_ma_stack': c6, 'above_ma240': c7, 'weekly_up': wk_up, 'monthly_up': mo_up,
+            'weekly_macd_positive': wk_macd_pos, 'monthly_macd_positive': mo_macd_pos,
+            'vcp_setup': vcp_score >= 0.65, 'bb_breakout': bb_breakout,
+            'c_engulfing_5d': c_engulfing_5d, 'c_box_breakout': c_box_breakout,
+            'c_bb_squeeze_breakout': c_bb_squeeze_breakout,
+            'c_bb_momentum_breakout': c_bb_momentum_breakout,
+            'c_triangle_contraction': c_triangle, 'c_inverse_head_shoulders': c_inverse_hs
+        },
         'metrics': {
             'latest_date': df.index[-1].strftime('%Y-%m-%d'), 'rsi': safe_float(latest['RSI']), 'macd_osc_d': safe_float(latest['MACD_Osc']),
             'macd_osc_w': safe_float(weekly.iloc[-1].get('MACD_Osc')) if len(weekly) else None,
@@ -1125,7 +1165,11 @@ def evaluate_technical(df, market_mode='offensive'):
             'ma5': safe_float(latest['MA5']), 'ma20': safe_float(latest['MA20']), 'opt_ma': safe_float(opt_ma_val),
             'ma50': safe_float(latest['MA50']), 'ma240': safe_float(latest['MA240']),
             'bias5': safe_float(latest.get('BIAS5')), 'bias20': bias20, 'bias60': bias60, 'bias240': safe_float(latest.get('BIAS240')),
-            'vcp_score': vcp_score, 'vcp_pivot': safe_float(latest.get('vcp_pivot')), 'bb_width_pctile': bb_width_pctile, 'bb_breakout': bb_breakout
+            'vcp_score': vcp_score, 'vcp_pivot': safe_float(latest.get('vcp_pivot')), 'bb_width_pctile': bb_width_pctile,
+            'bb_width': safe_float(latest.get('BBWidth')), 'bb_breakout': bb_breakout,
+            'box_width': safe_float(latest.get('Box_Width')), 'close_box_high': safe_float(latest.get('Close_Max_20_Prior')),
+            'cta_score': safe_float(latest.get('cta_score'), 0.0), 'triangle_score': triangle_score,
+            'inverse_head_shoulders_score': inverse_hs_score
         }
     }
 
@@ -1306,6 +1350,12 @@ def build_stock_report(ticker, tech_pack, fin_data, profile_info, rank=None):
         
     report += '------------------------\n'
     report += f'🏢 **產業:** {profile_info["industry"]}\n_{profile_info["profile"]}_\n'
+    all_tags = list(dict.fromkeys(list(tech_pack.get('strategy_tags', [])) + list(tech_pack.get('sector_tags', []))))
+    if all_tags:
+        report += f'🏷️ **策略標籤:** `{" / ".join(all_tags[:6])}`\n'
+    sector_info = tech_pack.get('sector_info') or {}
+    if sector_info:
+        report += f'🌐 **族群強度:** `{safe_num_str(sector_info.get("sector_strength_score"), 1)}` | 同族樣本 `{sector_info.get("count", 0)}` | 平均分 `{safe_num_str(sector_info.get("avg_score"), 1)}`\n'
     report += '------------------------\n'
 
     if is_etf:
@@ -1322,10 +1372,24 @@ def build_stock_report(ticker, tech_pack, fin_data, profile_info, rank=None):
         report += f'{"✅" if c["off_bottom"] else "❌"} 已脱離 52W 低點至少 30%\n'
         report += f'{"✅" if c["near_high"] else "❌"} 靠近 52W 高點 25% 內\n'
         report += f'{"✅" if c["momentum"] else "❌"} 日線動能：RSI>60 且 MACD>0\n'
+        if c.get('c_box_breakout'):
+            report += '🔥 **【進階型態】觸發無雜訊 20 日收盤箱型帶量突破**\n'
+        if c.get('c_engulfing_5d'):
+            report += '🔥 **【進階型態】出現強勢五日陣吞噬**\n'
+        if c.get('c_bb_squeeze_breakout'):
+            report += '🔥 **【布林型態】布林壓縮後帶量突破上軌**\n'
+        if c.get('c_bb_momentum_breakout'):
+            report += '🔥 **【布林動能】突破上軌且 RSI/MACD 同步轉強**\n'
+        if c.get('c_triangle_contraction'):
+            report += '📐 **【型態學】偵測到收斂三角雛形**\n'
+        if c.get('c_inverse_head_shoulders'):
+            report += '📐 **【型態學】偵測到頭肩底雛形**\n'
 
     report += '\n📈 **技術數據面板：**\n'
     report += f'🔹 RSI(日)：`{safe_num_str(m["rsi"], 1)}`\n'
     report += f'🔹 MACD Hist 日/週/月：`{safe_num_str(m["macd_osc_d"], 3)}` / `{safe_num_str(m["macd_osc_w"], 3)}` / `{safe_num_str(m["macd_osc_m"], 3)}`\n'
+    report += f'🔹 箱型寬度 / BB寬度：`{safe_pct_str((m.get("box_width") or 0) * 100 if m.get("box_width") is not None else None)}` / `{safe_pct_str((m.get("bb_width") or 0) * 100 if m.get("bb_width") is not None else None)}`\n'
+    report += f'🔹 VCP / CTA / 三角 / 頭肩底分數：`{safe_num_str(m.get("vcp_score"), 2)}` / `{safe_num_str(m.get("cta_score"), 2)}` / `{safe_num_str(m.get("triangle_score"), 2)}` / `{safe_num_str(m.get("inverse_head_shoulders_score"), 2)}`\n'
     report += f'🔹 5/20/60/240MA乖離率：`{safe_pct_str(m["bias5"])}` / `{safe_pct_str(m["bias20"])}` / `{safe_pct_str(m["bias60"])}` / `{safe_pct_str(m["bias240"])}`\n'
 
     if not is_etf:
@@ -1473,6 +1537,7 @@ def scan_and_rank_market(chat_id=None, requested_by_user=False, market_mode='off
             continue
 
     ranked.sort(key=lambda x: x['total_score'], reverse=True)
+    ranked = annotate_sector_strength(ranked)
     return ranked[:FINAL_TOP_N]
 
 # ==========================================
@@ -1495,17 +1560,31 @@ def run_market_scan_job(chat_id, requested_by_user=False, region='TW'):
     if not top_ranked:
         safe_send_message(chat_id, '☕ **掃描完畢**\n本次無達標股票。')
         return
+
+    dashboard_path = os.path.join(REPORT_DIR, f'{region}_top10_dashboard.png')
+    try:
+        dashboard = render_top_ranked_dashboard(top_ranked, dashboard_path, region=region, market_mode=market_mode)
+        if dashboard and os.path.exists(dashboard):
+            safe_send_photo(chat_id, dashboard)
+            time.sleep(2)
+    except Exception as e:
+        log_exception('[DASHBOARD-ERROR]', e)
         
     summary = [f'🏆 **{region} 今日 Top 10 觀察清單**']
     for i, item in enumerate(top_ranked, start=1):
         icon = '🛡️' if ('00' in item["ticker"] or item["ticker"] in get_defensive_etf_pool('US')) else '🚀'
-        summary.append(f'{i}. {icon} `{item["ticker"]}` | 總分 `{item["total_score"]:.1f}`')
+        tags = ' / '.join((item.get('tech_pack', {}).get('strategy_tags') or [])[:2] + (item.get('sector_tags') or [])[:2])
+        tag_text = f' | `{tags}`' if tags else ''
+        summary.append(f'{i}. {icon} `{item["ticker"]}` | 總分 `{item["total_score"]:.1f}`{tag_text}')
     safe_send_message(chat_id, '\n'.join(summary), parse_mode='Markdown')
     time.sleep(2)
     
     for i, item in enumerate(top_ranked, start=1):
         try:
-            report, img_path, strategy_img_path = build_stock_report(item['ticker'], item['tech_pack'], item['fin_data'], item['profile_info'], rank=i)
+            tech_pack = dict(item['tech_pack'])
+            tech_pack['sector_info'] = item.get('sector_info')
+            tech_pack['sector_tags'] = item.get('sector_tags', [])
+            report, img_path, strategy_img_path = build_stock_report(item['ticker'], tech_pack, item['fin_data'], item['profile_info'], rank=i)
             if img_path and os.path.exists(img_path): safe_send_photo(chat_id, img_path); time.sleep(1)
             if strategy_img_path and os.path.exists(strategy_img_path): safe_send_photo(chat_id, strategy_img_path); time.sleep(1)
             safe_send_message(chat_id, report, parse_mode='Markdown')
@@ -1545,17 +1624,23 @@ if bot:
 
     @bot.message_handler(func=lambda message: not message.text.startswith('/'))
     def handle_stock(message):
-        ticker = message.text.strip().upper().replace('多', '').replace('空', '')
+        raw_text = (message.text or '').strip().upper().replace('多', '').replace('空', '')
+
+        # Quietly ignore normal chat/noise. Only accept TW 4-digit symbols or
+        # compact US tickers such as AAPL/NVDA. Commands are handled above.
+        if not re.match(r'^([0-9]{4}|[A-Z]{1,5})$', raw_text):
+            return
+
+        ticker = raw_text
         safe_reply_to(message, f'⏳ 正在產生 `{ticker}` 報告...')
         
         region = 'US' if is_us_ticker(normalize_ticker(ticker)) else 'TW'
         current_mode, _ = check_market_status(region)
-        report, img_path, strategy_img_path = analyze_stock(ticker, current_mode)
+        report, img_path, strategy_img_path = analyze_stock(ticker, current_mode, silent=True)
         
         if img_path and os.path.exists(img_path): safe_send_photo(message.chat.id, img_path)
         if strategy_img_path and os.path.exists(strategy_img_path): safe_send_photo(message.chat.id, strategy_img_path)
         if report: safe_send_message(message.chat.id, report, parse_mode='Markdown')
-        else: safe_send_message(message.chat.id, '❌ 找不到資料')
 
 def schedule_loop():
     schedule.every().day.at('16:30').do(start_scan_thread, chat_id=CHAT_ID, requested_by_user=False, region='TW')

@@ -22,6 +22,15 @@ FEATURE_COLUMNS = [
     "bb_width",
     "bb_width_pctile",
     "bb_breakout",
+    "close_box_breakout",
+    "engulfing_5d",
+    "bb_squeeze_breakout",
+    "bb_momentum_breakout",
+    "cta_score",
+    "triangle_contraction_score",
+    "inverse_head_shoulders_score",
+    "pattern_score",
+    "sector_strength_score",
     "fund_score",
     "chip_score",
     "dl_signal",
@@ -90,7 +99,19 @@ def build_feature_frame(
 
     out["dl_signal"] = 0.5
     out["trend_probability"] = out["trend_score"].clip(0, 1)
-    out["breakout_probability"] = out[["vcp_score", "bb_breakout"]].max(axis=1).clip(0, 1)
+    breakout_cols = [
+        col for col in (
+            "vcp_score",
+            "bb_breakout",
+            "close_box_breakout",
+            "engulfing_5d",
+            "bb_squeeze_breakout",
+            "bb_momentum_breakout",
+            "pattern_score",
+        )
+        if col in out.columns
+    ]
+    out["breakout_probability"] = out[breakout_cols].max(axis=1).clip(0, 1) if breakout_cols else 0.5
     out["risk_probability"] = (1.0 - out["trend_score"]).clip(0, 1)
 
     if model_path and os.path.exists(model_path):

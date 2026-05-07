@@ -4,12 +4,15 @@ import pandas as pd
 from backtests.run_backtest import run_single_backtest
 from quant.bollinger import add_bollinger_features
 from quant.chip import calc_chip_score
+from quant.cta import add_cta_features
 from quant.data_sources import SQLiteTTLCache
 from quant.features import build_feature_frame
 from quant.features import normalize_ticker as normalize_feature_ticker
 from quant.fundamental import calc_fundamental_score
+from quant.patterns import add_pattern_features
 from quant.risk import calculate_position_size
 from quant.scoring import add_hybrid_score
+from quant.sector import annotate_sector_strength
 from quant.technical import add_technical_indicators
 from quant.telegram_bot import sanitize_telegram_error, validate_telegram_token
 from quant.vcp import add_vcp_features
@@ -141,3 +144,65 @@ def test_sqlite_ttl_cache_hit_and_expire(tmp_path):
     assert cache.get("unit", "hit") == {"value": 1}
     cache.set("unit", "expired", {"value": 2}, ttl_hours=-0.001)
     assert cache.get("unit", "expired") is None
+
+
+def test_close_box_breakout_uses_prior_box_not_today_high():
+    frame = synthetic_ohlcv(45)
+    frame["Close"] = 100.0
+    frame["Open"] = 99.0
+    frame["High"] = 101.0
+    frame["Low"] = 98.0
+    frame["Volume"] = 1_000_000
+    frame.iloc[-1, frame.columns.get_loc("Close")] = 111.0
+    frame.iloc[-1, frame.columns.get_loc("Open")] = 108.0
+    frame.iloc[-1, frame.columns.get_loc("High")] = 112.0
+    frame.iloc[-1, frame.columns.get_loc("Volume")] = 2_000_000
+
+    out = add_cta_features(frame)
+    latest = out.iloc[-1]
+    assert latest["Close_Max_20"] == 111.0
+    assert latest["Close_Max_20_Prior"] == 100.0
+    assert latest["close_box_breakout"] == 1
+
+
+def test_five_day_engulfing_requires_red_body_and_prior_high_break():
+    frame = synthetic_ohlcv(30)
+    frame["High"] = 100.0
+    frame["Close"] = 98.0
+    frame["Open"] = 97.0
+    frame.iloc[-1, frame.columns.get_loc("Open")] = 100.0
+    frame.iloc[-1, frame.columns.get_loc("Close")] = 104.0
+    frame.iloc[-1, frame.columns.get_loc("High")] = 105.0
+    out = add_cta_features(frame)
+    assert out["engulfing_5d"].iloc[-1] == 1
+
+    frame.iloc[-1, frame.columns.get_loc("Close")] = 101.0
+    out = add_cta_features(frame)
+    assert out["engulfing_5d"].iloc[-1] == 0
+
+
+def test_pattern_scores_and_sector_tags_are_bounded():
+    frame = synthetic_ohlcv(180)
+    patterned = add_pattern_features(frame)
+    assert patterned["triangle_contraction_score"].between(0, 1).all()
+    assert patterned["inverse_head_shoulders_score"].between(0, 1).all()
+
+    ranked = annotate_sector_strength(
+        [
+            {
+                "ticker": "AAA",
+                "total_score": 80,
+                "profile_info": {"industry": "AI"},
+                "tech_pack": {"conditions": {"c_box_breakout": True}, "df": frame},
+            },
+            {
+                "ticker": "BBB",
+                "total_score": 75,
+                "profile_info": {"industry": "AI"},
+                "tech_pack": {"conditions": {"bb_breakout": True}, "df": frame},
+            },
+        ]
+    )
+    assert ranked[0]["sector_info"]["count"] == 2
+    assert ranked[0]["sector_info"]["sector_strength_score"] > 0
+    assert ranked[0]["sector_tags"]

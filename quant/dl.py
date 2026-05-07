@@ -42,6 +42,14 @@ DEFAULT_FEATURE_COLUMNS = [
     "bb_width",
     "bb_width_pctile",
     "bb_breakout",
+    "close_box_breakout",
+    "engulfing_5d",
+    "bb_squeeze_breakout",
+    "bb_momentum_breakout",
+    "cta_score",
+    "triangle_contraction_score",
+    "inverse_head_shoulders_score",
+    "pattern_score",
 ]
 
 

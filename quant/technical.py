@@ -5,6 +5,9 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
+from .cta import add_cta_features
+from .patterns import add_pattern_features
+
 
 OHLCV_COLUMNS = ("Open", "High", "Low", "Close", "Volume")
 MA_PERIODS = (5, 20, 50, 60, 150, 200, 240)
@@ -76,6 +79,8 @@ def add_technical_indicators(df: pd.DataFrame) -> pd.DataFrame:
         out[f"BIAS{period}"] = (out["Close"] - ma) / ma * 100
 
     out["volume_avg20"] = out["Volume"].rolling(20, min_periods=10).mean()
+    out = add_cta_features(out)
+    out = add_pattern_features(out)
     return add_minervini_features(out)
 
 
