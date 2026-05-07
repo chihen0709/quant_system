@@ -4,8 +4,17 @@ FROM mcr.microsoft.com/playwright/python:v1.42.0-jammy
 # Set the container working directory.
 WORKDIR /app
 
-# Install git for local database updates.
-RUN apt-get update && apt-get install -y git && rm -rf /var/lib/apt/lists/*
+# Set timezone without interactive prompt.
+ENV TZ=Asia/Taipei
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install git and timezone data.
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends git tzdata && \
+    ln -snf /usr/share/zoneinfo/Asia/Taipei /etc/localtime && \
+    echo Asia/Taipei > /etc/timezone && \
+    dpkg-reconfigure -f noninteractive tzdata && \
+    rm -rf /var/lib/apt/lists/*
 
 # Copy requirements and install Python packages.
 COPY requirements.txt requirements-dl-cpu.txt ./
