@@ -88,7 +88,7 @@ FINANCIAL_UPDATE_TIMEOUT = 300
 TELEGRAM_RETRY = 2
 SCAN_PROGRESS_STEP = 100 
 
-TECHNICAL_PRESCREEN_LIMIT = 20
+TECHNICAL_PRESCREEN_LIMIT = int(os.environ.get('TECHNICAL_PRESCREEN_LIMIT', '60'))
 FINAL_TOP_N = 10
 WEIGHT_TECH = 0.50
 WEIGHT_FUND = 0.35
@@ -1136,6 +1136,7 @@ def evaluate_technical(df, market_mode='offensive'):
     technical_score = max(0, min(score, 100))
     vcp_score = safe_float(latest.get('vcp_score'), 0.0) or 0.0
     bb_breakout = bool(latest.get('bb_breakout', 0))
+    bb_score = safe_float(latest.get('bb_score'), 0.0) or 0.0
     bb_width_pctile = safe_float(latest.get('bb_width_pctile'))
     strategy_tags = row_strategy_tags(latest)
     if vcp_score >= 0.65: strategy_tags.append('VCP量縮收斂')
@@ -1166,7 +1167,7 @@ def evaluate_technical(df, market_mode='offensive'):
             'ma50': safe_float(latest['MA50']), 'ma240': safe_float(latest['MA240']),
             'bias5': safe_float(latest.get('BIAS5')), 'bias20': bias20, 'bias60': bias60, 'bias240': safe_float(latest.get('BIAS240')),
             'vcp_score': vcp_score, 'vcp_pivot': safe_float(latest.get('vcp_pivot')), 'bb_width_pctile': bb_width_pctile,
-            'bb_width': safe_float(latest.get('BBWidth')), 'bb_breakout': bb_breakout,
+            'bb_width': safe_float(latest.get('BBWidth')), 'bb_breakout': bb_breakout, 'bb_score': bb_score,
             'box_width': safe_float(latest.get('Box_Width')), 'close_box_high': safe_float(latest.get('Close_Max_20_Prior')),
             'cta_score': safe_float(latest.get('cta_score'), 0.0), 'triangle_score': triangle_score,
             'inverse_head_shoulders_score': inverse_hs_score
@@ -1179,14 +1180,60 @@ def calc_fundamental_score(f, is_us=False):
 def calc_chip_score(f, is_us=False):
     return shared_calc_chip_score(f, is_us)
 
-def final_total_score(t, f, c, is_us=False):
+def _scale_unit_score(value, default=0.0):
+    score = safe_float(value, default)
+    if score is None:
+        score = default
+    score = float(score)
+    if score <= 1.5:
+        score *= 100.0
+    return max(0.0, min(score, 100.0))
+
+def technical_model_scores(tech_pack):
+    metrics = (tech_pack or {}).get('metrics', {})
+    latest = (tech_pack or {}).get('latest')
+    bb_score = metrics.get('bb_score')
+    if bb_score is None and latest is not None:
+        bb_score = latest.get('bb_score', latest.get('bb_breakout', 0.0))
+
+    cta_score = metrics.get('cta_score', 0.0)
+    triangle_score = metrics.get('triangle_score', 0.0)
+    inverse_hs_score = metrics.get('inverse_head_shoulders_score', 0.0)
+    pattern_score = max(_scale_unit_score(triangle_score), _scale_unit_score(inverse_hs_score))
+
+    return {
+        'minervini': _scale_unit_score((tech_pack or {}).get('technical_score', 0.0), 0.0),
+        'vcp': _scale_unit_score(metrics.get('vcp_score', 0.0), 0.0),
+        'bb': _scale_unit_score(bb_score, 0.0),
+        'cta': _scale_unit_score(cta_score, 0.0),
+        'pattern': pattern_score,
+    }
+
+def candidate_model_average(tech_pack):
+    scores = technical_model_scores(tech_pack)
+    return sum(scores.values()) / max(1, len(scores))
+
+def final_total_score(t, f, c, is_us=False, tech_pack=None):
+    model_scores = technical_model_scores(tech_pack)
     tech_w = max(0.0, float(SYS_PARAMS.get('tech_weight', WEIGHT_TECH)))
     fund_w = max(0.0, float(SYS_PARAMS.get('fund_weight', WEIGHT_FUND)))
     chip_w = max(0.0, float(SYS_PARAMS.get('chip_weight', WEIGHT_CHIP)))
-    total_w = tech_w + fund_w + chip_w
+    vcp_w = max(0.0, float(SYS_PARAMS.get('vcp_weight', 0.15)))
+    bb_w = max(0.0, float(SYS_PARAMS.get('bb_weight', 0.10)))
+    cta_w = max(0.0, float(SYS_PARAMS.get('cta_weight', 0.08)))
+    pattern_w = max(0.0, float(SYS_PARAMS.get('pattern_weight', 0.07)))
+    total_w = tech_w + fund_w + chip_w + vcp_w + bb_w + cta_w + pattern_w
     if total_w <= 0:
         return t * WEIGHT_TECH + f * WEIGHT_FUND + c * WEIGHT_CHIP
-    return (t * tech_w + f * fund_w + c * chip_w) / total_w
+    return (
+        t * tech_w +
+        f * fund_w +
+        c * chip_w +
+        model_scores['vcp'] * vcp_w +
+        model_scores['bb'] * bb_w +
+        model_scores['cta'] * cta_w +
+        model_scores['pattern'] * pattern_w
+    ) / total_w
 
 # ==========================================
 # Report and card generation
@@ -1488,13 +1535,21 @@ def scan_and_rank_market(chat_id=None, requested_by_user=False, market_mode='off
                 continue
 
             tech_pack = evaluate_technical(df, market_mode)
-            if tech_pack['technical_score'] >= 50:
-                prescreen.append({'ticker': tkr, 'df': df, 'tech_pack': tech_pack})
+            prescreen.append({
+                'ticker': tkr,
+                'df': df,
+                'tech_pack': tech_pack,
+                'model_average': candidate_model_average(tech_pack),
+            })
 
-        except Exception:
+        except Exception as e:
+            log_exception(f'[PRESCREEN-ERROR] {ticker}', e)
             continue
         
-    prescreen.sort(key=lambda x: x['tech_pack']['technical_score'], reverse=True)
+    prescreen.sort(
+        key=lambda x: (x.get('model_average', 0.0), x['tech_pack']['technical_score']),
+        reverse=True,
+    )
     prescreen = prescreen[:TECHNICAL_PRESCREEN_LIMIT]
 
     if requested_by_user:
@@ -1524,12 +1579,21 @@ def scan_and_rank_market(chat_id=None, requested_by_user=False, market_mode='off
             t_score = item['tech_pack']['technical_score']
             f_score = calc_fundamental_score(fin_data, is_us)
             c_score = calc_chip_score(fin_data, is_us)
+            model_scores = technical_model_scores(item['tech_pack'])
             ranked.append({
                 'ticker': ticker,
                 'tech_pack': item['tech_pack'],
                 'fin_data': fin_data,
                 'profile_info': profile_info,
-                'total_score': final_total_score(t_score, f_score, c_score, is_us)
+                'model_scores': model_scores,
+                'model_average': (
+                    model_scores['minervini'] + model_scores['vcp'] + model_scores['bb'] +
+                    model_scores['cta'] + model_scores['pattern'] + f_score + c_score
+                ) / 7.0,
+                'technical_score': t_score,
+                'fundamental_score': f_score,
+                'chip_score': c_score,
+                'total_score': final_total_score(t_score, f_score, c_score, is_us, item['tech_pack'])
             })
 
         except Exception as e:
@@ -1538,7 +1602,39 @@ def scan_and_rank_market(chat_id=None, requested_by_user=False, market_mode='off
 
     ranked.sort(key=lambda x: x['total_score'], reverse=True)
     ranked = annotate_sector_strength(ranked)
-    return ranked[:FINAL_TOP_N]
+    return ranked
+
+def top_ranked_by_model(ranked, model_key, limit=FINAL_TOP_N, require_signal=False):
+    def model_value(item):
+        if model_key == 'sector':
+            return safe_float((item.get('sector_info') or {}).get('sector_strength_score'), 0.0) or 0.0
+        return safe_float((item.get('model_scores') or {}).get(model_key), 0.0) or 0.0
+
+    filtered = []
+    for item in ranked:
+        value = model_value(item)
+        if require_signal and value <= 0:
+            continue
+        filtered.append(item)
+    filtered.sort(key=lambda item: (model_value(item), item.get('total_score', 0.0)), reverse=True)
+    return filtered[:limit]
+
+def format_ranked_summary(title, ranked, score_label='總分', model_key=None):
+    lines = [title]
+    if not ranked:
+        lines.append('本次沒有可排序標的。')
+        return '\n'.join(lines)
+    for i, item in enumerate(ranked[:FINAL_TOP_N], start=1):
+        tags = ' / '.join((item.get('tech_pack', {}).get('strategy_tags') or [])[:2] + (item.get('sector_tags') or [])[:2])
+        tag_text = f' | `{tags}`' if tags else ''
+        if model_key == 'sector':
+            score = safe_float((item.get('sector_info') or {}).get('sector_strength_score'), 0.0) or 0.0
+        elif model_key:
+            score = safe_float((item.get('model_scores') or {}).get(model_key), 0.0) or 0.0
+        else:
+            score = safe_float(item.get('total_score'), 0.0) or 0.0
+        lines.append(f'{i}. `{item["ticker"]}` | {score_label} `{score:.1f}` | 加權 `{item.get("total_score", 0.0):.1f}` | 平均 `{item.get("model_average", 0.0):.1f}`{tag_text}')
+    return '\n'.join(lines)
 
 # ==========================================
 # Main jobs and scheduler
@@ -1555,7 +1651,8 @@ def run_market_scan_job(chat_id, requested_by_user=False, region='TW'):
         time.sleep(2)
     
     if region == 'TW': update_my_tw_coverage(chat_id)
-    top_ranked = scan_and_rank_market(chat_id, requested_by_user, market_mode, region)
+    all_ranked = scan_and_rank_market(chat_id, requested_by_user, market_mode, region)
+    top_ranked = all_ranked[:FINAL_TOP_N]
     
     if not top_ranked:
         safe_send_message(chat_id, '☕ **掃描完畢**\n本次無達標股票。')
@@ -1570,14 +1667,22 @@ def run_market_scan_job(chat_id, requested_by_user=False, region='TW'):
     except Exception as e:
         log_exception('[DASHBOARD-ERROR]', e)
         
-    summary = [f'🏆 **{region} 今日 Top 10 觀察清單**']
-    for i, item in enumerate(top_ranked, start=1):
-        icon = '🛡️' if ('00' in item["ticker"] or item["ticker"] in get_defensive_etf_pool('US')) else '🚀'
-        tags = ' / '.join((item.get('tech_pack', {}).get('strategy_tags') or [])[:2] + (item.get('sector_tags') or [])[:2])
-        tag_text = f' | `{tags}`' if tags else ''
-        summary.append(f'{i}. {icon} `{item["ticker"]}` | 總分 `{item["total_score"]:.1f}`{tag_text}')
-    safe_send_message(chat_id, '\n'.join(summary), parse_mode='Markdown')
+    safe_send_message(
+        chat_id,
+        format_ranked_summary(f'🏆 **{region} 加權平均 Top 10 觀察清單**', top_ranked),
+        parse_mode='Markdown',
+    )
     time.sleep(2)
+
+    if region == 'TW':
+        tw_sections = [
+            ('🧬 **TW VCP 形態 Top 10**', top_ranked_by_model(all_ranked, 'vcp'), 'VCP', 'vcp'),
+            ('🔥 **TW 布林突破 Top 10**', top_ranked_by_model(all_ranked, 'bb'), '布林', 'bb'),
+            ('🌐 **TW 族群連動 Top 10**', top_ranked_by_model(all_ranked, 'sector'), '族群', 'sector'),
+        ]
+        for title, items, label, key in tw_sections:
+            safe_send_message(chat_id, format_ranked_summary(title, items, label, key), parse_mode='Markdown')
+            time.sleep(1)
     
     for i, item in enumerate(top_ranked, start=1):
         try:
@@ -1693,7 +1798,7 @@ def run_cli_command(args):
         if not ranked:
             print("[CLI] no qualified stocks", flush=True)
             return True
-        for idx, item in enumerate(ranked, start=1):
+        for idx, item in enumerate(ranked[:FINAL_TOP_N], start=1):
             print(f"{idx}. {item['ticker']} total_score={item['total_score']:.1f}", flush=True)
         return True
 
