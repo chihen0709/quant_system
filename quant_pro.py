@@ -10,6 +10,8 @@ import traceback
 import sys
 from io import StringIO
 from datetime import datetime
+from logging.handlers import RotatingFileHandler
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import matplotlib
 matplotlib.use('Agg')
@@ -1683,6 +1685,17 @@ def compute_indicators(df):
         1,
         0
     ) if 'Volume' in df.columns else 0
+    df['bb_squeeze'] = np.where(df['BBWidth'] < 10.0, 1, 0)
+    df['vcp_score'] = np.where(df['BBWidth'] < 10.0, 0.70, 0.0)
+    df['vcp_pivot'] = df['High'].rolling(window=20, min_periods=5).max()
+    df['is_vcp'] = np.where(df['BBWidth'] < 10.0, 1, 0)
+    df['is_engulfing'] = np.where(
+        (df['Close'] > df['Open']) &
+        (df['Close'] > df['High'].shift(1)) &
+        (df['Open'] < df['Low'].shift(1)),
+        1,
+        0
+    )
 
     # RSI.
     try:
@@ -1786,10 +1799,33 @@ def evaluate_technical(df, market_mode='offensive'):
     vcp_score = safe_float(latest.get('vcp_score'), 0.0) or 0.0
     bb_breakout = bool(latest.get('bb_breakout', 0))
     bb_width_pctile = safe_float(latest.get('bb_width_pctile'))
+    pattern_tag = '多頭排列'
+    if bb_breakout:
+        pattern_tag = '布林突破'
+    elif bool(latest.get('is_vcp', 0)) or vcp_score >= 0.65:
+        pattern_tag = 'VCP 收斂'
+    elif bool(latest.get('is_engulfing', 0)):
+        pattern_tag = '型態吞噬'
+    strategy_tags = row_strategy_tags(latest)
+    if vcp_score >= 0.65: strategy_tags.append('VCP量縮收斂')
+    if bb_breakout: strategy_tags.append('BB帶量突破')
+    if c_triangle: strategy_tags.append('收斂三角')
+    if c_inverse_hs: strategy_tags.append('頭肩底雛形')
 
     return {
         'df': df, 'weekly': weekly, 'monthly': monthly, 'technical_score': technical_score, 'latest': latest, 'mode': market_mode,
-        'conditions': {'trend_stack': c1, 'off_bottom': c2, 'near_high': c3, 'momentum': c4, 'liquidity': c5, 'short_mid_ma_stack': c6, 'above_ma240': c7, 'weekly_up': wk_up, 'monthly_up': mo_up, 'weekly_macd_positive': wk_macd_pos, 'monthly_macd_positive': mo_macd_pos, 'vcp_setup': vcp_score >= 0.65, 'bb_breakout': bb_breakout},
+        'pattern_tag': pattern_tag,
+        'strategy_tags': strategy_tags,
+        'conditions': {
+            'trend_stack': c1, 'off_bottom': c2, 'near_high': c3, 'momentum': c4, 'liquidity': c5,
+            'short_mid_ma_stack': c6, 'above_ma240': c7, 'weekly_up': wk_up, 'monthly_up': mo_up,
+            'weekly_macd_positive': wk_macd_pos, 'monthly_macd_positive': mo_macd_pos,
+            'vcp_setup': vcp_score >= 0.65, 'bb_breakout': bb_breakout,
+            'c_engulfing_5d': c_engulfing_5d, 'c_box_breakout': c_box_breakout,
+            'c_bb_squeeze_breakout': c_bb_squeeze_breakout,
+            'c_bb_momentum_breakout': c_bb_momentum_breakout,
+            'c_triangle_contraction': c_triangle, 'c_inverse_head_shoulders': c_inverse_hs
+        },
         'metrics': {
             'latest_date': df.index[-1].strftime('%Y-%m-%d'), 'rsi': safe_float(latest['RSI']), 'macd_osc_d': safe_float(latest['MACD_Osc']),
             'macd_osc_w': safe_float(weekly.iloc[-1].get('MACD_Osc')) if len(weekly) else None,
@@ -2072,6 +2108,302 @@ def build_stock_report(ticker, tech_pack, fin_data, profile_info, rank=None):
 
     return report, img_path, None
 
+def create_scan_summary_image(ranked_list, output_path, region='TW'):
+    if not ranked_list:
+        return None
+
+    title = f"{region} strong stock scan | {datetime.now().strftime('%Y-%m-%d')}"
+    rows_html = ""
+    for idx, item in enumerate(ranked_list, start=1):
+        tech_pack = item['tech_pack']
+        fin_data = item['fin_data']
+        latest = tech_pack['latest']
+        ticker = item['ticker']
+        pattern_tag = tech_pack.get('pattern_tag', 'Trend')
+        total_score = item['total_score']
+        tag_color = "#38bdf8"
+        if pattern_tag == "布林突破":
+            tag_color = "#ef4444"
+        elif pattern_tag == "VCP 收斂":
+            tag_color = "#10b981"
+        elif pattern_tag == "型態吞噬":
+            tag_color = "#8b5cf6"
+
+        rows_html += f"""
+        <tr>
+            <td class="rank">{idx}</td>
+            <td class="ticker">{ticker}</td>
+            <td>
+                <div class="price">收 {safe_float(latest.get('Close'), 0):.2f}</div>
+                <div class="sub">RSI {safe_num_str(tech_pack['metrics'].get('rsi'), 1)}</div>
+            </td>
+            <td><span class="tag" style="--tag-color:{tag_color};">{pattern_tag}</span></td>
+            <td>
+                <div>EPS {safe_num_str(fin_data.get('eps_ttm'))}</div>
+                <div class="sub">YoY {safe_pct_str(fin_data.get('single_month_yoy'))}</div>
+            </td>
+            <td class="score">{total_score:.1f}</td>
+        </tr>
+        """
+
+    html_content = f"""
+    <!doctype html>
+    <html>
+    <head>
+        <meta charset="utf-8">
+        <style>
+            body {{
+                margin: 0;
+                width: 980px;
+                background: #0f172a;
+                color: #e5e7eb;
+                font-family: "Noto Sans CJK TC", "Microsoft JhengHei", "Segoe UI", Arial, sans-serif;
+            }}
+            .wrap {{
+                margin: 0;
+                padding: 28px;
+                background: linear-gradient(180deg, #0f172a 0%, #111827 100%);
+            }}
+            .panel {{
+                border: 1px solid #334155;
+                border-radius: 12px;
+                overflow: hidden;
+                background: #111827;
+                box-shadow: 0 24px 70px rgba(0, 0, 0, .45);
+            }}
+            .head {{
+                padding: 22px 26px;
+                background: #123047;
+                border-bottom: 1px solid #334155;
+            }}
+            h1 {{
+                margin: 0;
+                font-size: 28px;
+                letter-spacing: 0;
+            }}
+            .meta {{
+                margin-top: 8px;
+                color: #cbd5e1;
+                font-size: 14px;
+            }}
+            table {{
+                width: 100%;
+                border-collapse: collapse;
+                table-layout: fixed;
+            }}
+            th {{
+                padding: 13px 14px;
+                color: #cbd5e1;
+                background: #1f3b53;
+                font-size: 14px;
+                text-align: center;
+            }}
+            td {{
+                padding: 16px 14px;
+                border-top: 1px solid #263548;
+                text-align: center;
+                font-size: 15px;
+            }}
+            .rank {{ width: 44px; color: #94a3b8; }}
+            .ticker {{ font-size: 20px; font-weight: 800; color: #f8fafc; }}
+            .price {{ font-weight: 700; color: #f8fafc; }}
+            .sub {{ margin-top: 4px; color: #94a3b8; font-size: 12px; }}
+            .tag {{
+                display: inline-block;
+                min-width: 86px;
+                padding: 7px 10px;
+                border-radius: 8px;
+                color: var(--tag-color);
+                background: color-mix(in srgb, var(--tag-color) 20%, transparent);
+                border: 1px solid color-mix(in srgb, var(--tag-color) 36%, transparent);
+                font-weight: 800;
+            }}
+            .score {{
+                color: #fbbf24;
+                font-weight: 900;
+                font-size: 22px;
+            }}
+        </style>
+    </head>
+    <body>
+        <div class="wrap">
+            <div class="panel" id="capture-area">
+                <div class="head">
+                    <h1>{title}</h1>
+                    <div class="meta">Top {len(ranked_list)} | VCP / Bollinger breakout / trend stack summary</div>
+                </div>
+                <table>
+                    <tr>
+                        <th>#</th><th>股票</th><th>盤面</th><th>型態</th><th>基本面</th><th>模型</th>
+                    </tr>
+                    {rows_html}
+                </table>
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+
+    try:
+        with sync_playwright() as p:
+            browser = p.chromium.launch(headless=True)
+            page = browser.new_page(viewport={"width": 980, "height": 900}, device_scale_factor=2)
+            page.set_content(html_content, wait_until="networkidle")
+            page.locator("#capture-area").screenshot(path=output_path)
+            browser.close()
+            return output_path
+    except Exception as e:
+        log_exception('[SCAN-SUMMARY-IMAGE-ERROR]', e)
+        return None
+
+def create_scan_summary_image(ranked_list, output_path, region='TW'):
+    if not ranked_list:
+        return None
+
+    title = f"{region} strong stock scan | {datetime.now().strftime('%Y-%m-%d')}"
+    rows_html = ""
+    for idx, item in enumerate(ranked_list, start=1):
+        tech_pack = item['tech_pack']
+        fin_data = item['fin_data']
+        latest = tech_pack['latest']
+        ticker = item['ticker']
+        pattern_tag = tech_pack.get('pattern_tag', 'Trend')
+        total_score = item['total_score']
+        tag_color = "#38bdf8"
+        if pattern_tag == "布林突破":
+            tag_color = "#ef4444"
+        elif pattern_tag == "VCP 收斂":
+            tag_color = "#10b981"
+        elif pattern_tag == "型態吞噬":
+            tag_color = "#8b5cf6"
+
+        rows_html += f"""
+        <tr>
+            <td class="rank">{idx}</td>
+            <td class="ticker">{ticker}</td>
+            <td>
+                <div class="price">收 {safe_float(latest.get('Close'), 0):.2f}</div>
+                <div class="sub">RSI {safe_num_str(tech_pack['metrics'].get('rsi'), 1)}</div>
+            </td>
+            <td><span class="tag" style="--tag-color:{tag_color};">{pattern_tag}</span></td>
+            <td>
+                <div>EPS {safe_num_str(fin_data.get('eps_ttm'))}</div>
+                <div class="sub">YoY {safe_pct_str(fin_data.get('single_month_yoy'))}</div>
+            </td>
+            <td class="score">{total_score:.1f}</td>
+        </tr>
+        """
+
+    html_content = f"""
+    <!doctype html>
+    <html>
+    <head>
+        <meta charset="utf-8">
+        <style>
+            body {{
+                margin: 0;
+                width: 980px;
+                background: #0f172a;
+                color: #e5e7eb;
+                font-family: "Noto Sans CJK TC", "Microsoft JhengHei", "Segoe UI", Arial, sans-serif;
+            }}
+            .wrap {{
+                margin: 0;
+                padding: 28px;
+                background: linear-gradient(180deg, #0f172a 0%, #111827 100%);
+            }}
+            .panel {{
+                border: 1px solid #334155;
+                border-radius: 12px;
+                overflow: hidden;
+                background: #111827;
+                box-shadow: 0 24px 70px rgba(0, 0, 0, .45);
+            }}
+            .head {{
+                padding: 22px 26px;
+                background: #123047;
+                border-bottom: 1px solid #334155;
+            }}
+            h1 {{
+                margin: 0;
+                font-size: 28px;
+                letter-spacing: 0;
+            }}
+            .meta {{
+                margin-top: 8px;
+                color: #cbd5e1;
+                font-size: 14px;
+            }}
+            table {{
+                width: 100%;
+                border-collapse: collapse;
+                table-layout: fixed;
+            }}
+            th {{
+                padding: 13px 14px;
+                color: #cbd5e1;
+                background: #1f3b53;
+                font-size: 14px;
+                text-align: center;
+            }}
+            td {{
+                padding: 16px 14px;
+                border-top: 1px solid #263548;
+                text-align: center;
+                font-size: 15px;
+            }}
+            .rank {{ width: 44px; color: #94a3b8; }}
+            .ticker {{ font-size: 20px; font-weight: 800; color: #f8fafc; }}
+            .price {{ font-weight: 700; color: #f8fafc; }}
+            .sub {{ margin-top: 4px; color: #94a3b8; font-size: 12px; }}
+            .tag {{
+                display: inline-block;
+                min-width: 86px;
+                padding: 7px 10px;
+                border-radius: 8px;
+                color: var(--tag-color);
+                background: color-mix(in srgb, var(--tag-color) 20%, transparent);
+                border: 1px solid color-mix(in srgb, var(--tag-color) 36%, transparent);
+                font-weight: 800;
+            }}
+            .score {{
+                color: #fbbf24;
+                font-weight: 900;
+                font-size: 22px;
+            }}
+        </style>
+    </head>
+    <body>
+        <div class="wrap">
+            <div class="panel" id="capture-area">
+                <div class="head">
+                    <h1>{title}</h1>
+                    <div class="meta">Top {len(ranked_list)} | VCP / Bollinger breakout / trend stack summary</div>
+                </div>
+                <table>
+                    <tr>
+                        <th>#</th><th>股票</th><th>盤面</th><th>型態</th><th>基本面</th><th>模型</th>
+                    </tr>
+                    {rows_html}
+                </table>
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+
+    try:
+        with sync_playwright() as p:
+            browser = p.chromium.launch(headless=True)
+            page = browser.new_page(viewport={"width": 980, "height": 900}, device_scale_factor=2)
+            page.set_content(html_content, wait_until="networkidle")
+            page.locator("#capture-area").screenshot(path=output_path)
+            browser.close()
+            return output_path
+    except Exception as e:
+        log_exception('[SCAN-SUMMARY-IMAGE-ERROR]', e)
+        return None
+
 def analyze_stock(ticker, market_mode='offensive', silent=False):
     try:
         ticker, df = download_stock_df(ticker)
@@ -2096,6 +2428,18 @@ def analyze_stock(ticker, market_mode='offensive', silent=False):
         log_exception(f'[ANALYZE-ERROR] {ticker}', e)
         return (None, None, None) if silent else (f'❌ 錯誤：{e}', None, None)
 
+def process_single_scan(ticker, market_mode):
+    try:
+        tkr, df = download_stock_df(ticker)
+        if df.empty or len(df) < 250:
+            return None
+        tech_pack = evaluate_technical(df, market_mode)
+        if tech_pack['technical_score'] >= 50:
+            return {'ticker': tkr, 'df': df, 'tech_pack': tech_pack}
+    except Exception:
+        return None
+    return None
+
 def scan_and_rank_market(chat_id=None, requested_by_user=False, market_mode='offensive', region='TW'):
     if region == 'TW':
         pool = get_tw_stock_pool(market_mode)
@@ -2105,7 +2449,24 @@ def scan_and_rank_market(chat_id=None, requested_by_user=False, market_mode='off
     if TEST_MODE:
         pool = pool[:15]
 
-    prescreen = []
+    if requested_by_user and region == 'US':
+        safe_send_message(chat_id, f'⏳ 正在併發掃描 {len(pool)} 檔美股，預計耗時 1~2 分鐘...')
+
+    precomputed_prescreen = []
+    completed = 0
+    max_workers = 10 if region == 'US' else 8
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        futures = [executor.submit(process_single_scan, ticker, market_mode) for ticker in pool]
+        for future in as_completed(futures):
+            completed += 1
+            if requested_by_user and (completed == 1 or completed % SCAN_PROGRESS_STEP == 0 or completed == len(pool)):
+                safe_send_message(chat_id, f'📡 {region} 技術面初篩中：`{completed}`/`{len(pool)}` 檔...')
+            res = future.result()
+            if res:
+                precomputed_prescreen.append(res)
+    pool = []
+
+    prescreen = precomputed_prescreen
     for idx, ticker in enumerate(pool, start=1):
         try:
             if idx == 1 or idx % SCAN_PROGRESS_STEP == 0:
@@ -2188,6 +2549,21 @@ def run_market_scan_job(chat_id, requested_by_user=False, region='TW'):
     if not top_ranked:
         safe_send_message(chat_id, '☕ **掃描完畢**\n本次無達標股票。')
         return
+
+    summary_img_path = os.path.join(REPORT_DIR, f'{region}_scan_summary.png')
+    summary_img = create_scan_summary_image(top_ranked, summary_img_path, region)
+    if summary_img and os.path.exists(summary_img):
+        safe_send_photo(chat_id, summary_img, caption=f'🏆 {region} Top 10 強勢型態統整')
+        time.sleep(2)
+
+    dashboard_path = os.path.join(REPORT_DIR, f'{region}_top10_dashboard.png')
+    try:
+        dashboard = render_top_ranked_dashboard(top_ranked, dashboard_path, region=region, market_mode=market_mode)
+        if dashboard and os.path.exists(dashboard):
+            safe_send_photo(chat_id, dashboard)
+            time.sleep(2)
+    except Exception as e:
+        log_exception('[DASHBOARD-ERROR]', e)
         
     summary = [f'🏆 **{region} 今日 Top 10 觀察清單**']
     for i, item in enumerate(top_ranked, start=1):
