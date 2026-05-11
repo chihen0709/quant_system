@@ -8,8 +8,6 @@ import threading
 import subprocess
 import traceback
 import sys
-import argparse
-import logging
 from io import StringIO
 from datetime import datetime
 from logging.handlers import RotatingFileHandler
@@ -24,30 +22,17 @@ from matplotlib.patches import Rectangle
 
 import numpy as np
 import pandas as pd
+import requests
 from playwright.sync_api import sync_playwright  
 import schedule
 import ta
+import telebot
+import yfinance as yf
 import joblib  
-
-from quant import data_sources as data_sources
-from quant.chip import calc_chip_score as shared_calc_chip_score
-from quant.cta import add_cta_features, row_strategy_tags
-from quant.dashboard import render_top_ranked_dashboard
-from quant.fundamental import calc_fundamental_score as shared_calc_fundamental_score
-from quant.patterns import add_pattern_features
-from quant.sector import annotate_sector_strength
-from quant.telegram_bot import create_telegram_bot, sanitize_telegram_error, validate_telegram_token
-
-FINMIND_TOKEN = os.environ.get('FINMIND_TOKEN', '').strip()
 
 try:
     from FinMind.data import DataLoader
     dl = DataLoader()
-    if FINMIND_TOKEN:
-        try:
-            dl.login_by_token(api_token=FINMIND_TOKEN)
-        except TypeError:
-            dl.login_by_token(FINMIND_TOKEN)
 except Exception as e:
     DataLoader = None
     dl = None
@@ -67,8 +52,13 @@ matplotlib.rcParams['font.sans-serif'] = [
 
 TELEGRAM_TOKEN = os.environ.get('TELEGRAM_TOKEN', '')
 CHAT_ID = os.environ.get('TELEGRAM_CHAT_ID') or os.environ.get('CHAT_ID', '')
-TELEGRAM_POLLING_ENABLED = os.environ.get('TELEGRAM_POLLING_ENABLED', '1').strip().lower() not in ('0', 'false', 'no', 'off')
-USE_MACRO_MODEL = os.environ.get('USE_MACRO_MODEL', '0').strip().lower() in ('1', 'true', 'yes', 'on')
+
+if not TELEGRAM_TOKEN or not CHAT_ID:
+    print("⚠️ 找不到 TELEGRAM_TOKEN 或 TELEGRAM_CHAT_ID，Telegram bot will be disabled.")
+
+if TELEGRAM_TOKEN and ':' not in TELEGRAM_TOKEN:
+    print("⚠️ TELEGRAM_TOKEN format looks invalid. Telegram bot will be disabled.")
+    TELEGRAM_TOKEN = ''
 
 TEST_MODE = False
 HOLD_DAYS = 20
@@ -76,68 +66,28 @@ HOLD_DAYS = 20
 REPORT_DIR = 'reports'
 MODEL_DIR = 'models'
 CONFIG_DIR = 'config'
-LOG_DIR = os.environ.get('LOG_DIR', 'logs')
-LOG_FILE = os.environ.get('LOG_FILE', os.path.join(LOG_DIR, 'quant_system.log'))
 
 MY_TW_COVERAGE_PATH = os.environ.get('MY_TW_COVERAGE_PATH', './My-TW-Coverage')
 
 MACRO_MODEL_PATH = os.path.join(MODEL_DIR, 'macro_rf_model.pkl')
-PARAMS_FILE_PATH = os.environ.get('SCORE_CONFIG_PATH', os.path.join(CONFIG_DIR, 'best_params.json'))
+PARAMS_FILE_PATH = os.path.join(CONFIG_DIR, 'best_params.json')
 
 GIT_PULL_TIMEOUT = 30
 FINANCIAL_UPDATE_TIMEOUT = 300
 TELEGRAM_RETRY = 2
 SCAN_PROGRESS_STEP = 100 
 
-TECHNICAL_PRESCREEN_LIMIT = int(os.environ.get('TECHNICAL_PRESCREEN_LIMIT', '60'))
+TECHNICAL_PRESCREEN_LIMIT = 20
 FINAL_TOP_N = 10
 WEIGHT_TECH = 0.50
 WEIGHT_FUND = 0.35
 WEIGHT_CHIP = 0.15
 
-US_MIN_AVG_VOLUME = int(os.environ.get('US_MIN_AVG_VOLUME', '3000000'))
-US_POOL_MAX_CANDIDATES = int(os.environ.get('US_POOL_MAX_CANDIDATES', '240'))
-US_POOL_MAX_RESULTS = int(os.environ.get('US_POOL_MAX_RESULTS', '180'))
-US_POOL_CACHE_TTL_HOURS = float(os.environ.get('US_POOL_CACHE_TTL_HOURS', '12'))
-US_POOL_CACHE_PATH = os.path.join(CONFIG_DIR, 'us_stock_pool_cache.json')
-
 os.makedirs(REPORT_DIR, exist_ok=True)
 os.makedirs(MODEL_DIR, exist_ok=True)
 os.makedirs(CONFIG_DIR, exist_ok=True)
-os.makedirs(LOG_DIR, exist_ok=True)
 
-LOGGER = logging.getLogger('quant_system')
-LOGGER.setLevel(logging.INFO)
-if not LOGGER.handlers:
-    log_handler = RotatingFileHandler(LOG_FILE, maxBytes=5_000_000, backupCount=5, encoding='utf-8')
-    log_handler.setFormatter(logging.Formatter('[%(asctime)s] %(levelname)s %(message)s'))
-    LOGGER.addHandler(log_handler)
-
-def now_str(): return datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-
-def log(msg):
-    print(f'[{now_str()}] {msg}', flush=True)
-    try:
-        LOGGER.info(str(msg))
-    except Exception:
-        pass
-
-def log_exception(prefix, exc):
-    log(f'{prefix}: {sanitize_telegram_error(exc)}')
-    tb = traceback.format_exc()
-    print(tb, flush=True)
-    try:
-        LOGGER.error('%s\n%s', prefix, tb)
-    except Exception:
-        pass
-
-if not TELEGRAM_TOKEN or not CHAT_ID:
-    log("[Telegram] Bot disabled: TELEGRAM_TOKEN or TELEGRAM_CHAT_ID is missing.")
-elif not validate_telegram_token(TELEGRAM_TOKEN):
-    log("[Telegram] Bot disabled: TELEGRAM_TOKEN format is invalid.")
-    TELEGRAM_TOKEN = ''
-
-bot = create_telegram_bot(TELEGRAM_TOKEN, log=log) if TELEGRAM_TOKEN and CHAT_ID else None
+bot = telebot.TeleBot(TELEGRAM_TOKEN) if TELEGRAM_TOKEN and ':' in TELEGRAM_TOKEN else None
 
 # ==========================================
 # Telegram sender
@@ -176,28 +126,6 @@ def safe_reply_to(message, text, parse_mode=None):
     try: bot.reply_to(message, text, parse_mode=parse_mode); return True
     except Exception: return False
 
-def start_telegram_polling():
-    if not bot:
-        log('[Telegram] Bot disabled because TELEGRAM_TOKEN/CHAT_ID is missing or invalid.')
-        return
-    if not TELEGRAM_POLLING_ENABLED:
-        log('[Telegram] Polling disabled by TELEGRAM_POLLING_ENABLED=0. Research/backtest commands can still run.')
-        return
-
-    try:
-        bot.delete_webhook(drop_pending_updates=False)
-        bot.get_updates(timeout=1, limit=1)
-    except Exception as e:
-        error_code = getattr(e, 'error_code', None)
-        description = str(e)
-        if error_code == 409 or 'Conflict' in description or 'getUpdates' in description:
-            log('[Telegram-409] Another process is already polling this bot token. Stop the other bot/container, or set TELEGRAM_POLLING_ENABLED=0 on this machine.')
-            return
-        log(f'[Telegram-WARN] Polling preflight failed: {e}')
-
-    log('[Telegram] Polling started.')
-    bot.infinity_polling(timeout=60, long_polling_timeout=30)
-
 # ==========================================
 # Configuration loader
 # ==========================================
@@ -231,158 +159,1022 @@ SYS_PARAMS = load_best_params()
 # ==========================================
 # Market monitor
 # ==========================================
+def _download_yf_df(ticker, period='6mo'):
+    try:
+        df = yf.download(ticker, period=period, progress=False, auto_adjust=True)
+    except Exception as e:
+        log_exception(f'[YF-DATA-ERROR] {ticker}', e)
+        return pd.DataFrame()
+
+    if df is None or df.empty:
+        return pd.DataFrame()
+
+    if isinstance(df.columns, pd.MultiIndex):
+        df.columns = df.columns.droplevel(1)
+
+    return df.dropna(how='all').copy()
+
+
+def _download_macro_index_df(region='TW', period='6mo'):
+    index_ticker = '^TWII' if region == 'TW' else '^GSPC'
+    df = _download_yf_df(index_ticker, period=period)
+
+    if df.empty or 'Close' not in df.columns:
+        return pd.DataFrame()
+
+    df['MA20'] = ta.trend.sma_indicator(df['Close'], 20)
+    df['MA50'] = ta.trend.sma_indicator(df['Close'], 50)
+    df['RET'] = df['Close'].pct_change() * 100
+
+    if 'Volume' in df.columns:
+        df['VOL_MA20'] = df['Volume'].rolling(20).mean()
+        df['VOL_RATIO'] = np.where(df['VOL_MA20'] > 0, df['Volume'] / df['VOL_MA20'], np.nan)
+    else:
+        df['VOL_MA20'] = np.nan
+        df['VOL_RATIO'] = np.nan
+
+    return df
+
+
+def _download_vix_series(period='2mo'):
+    df = _download_yf_df('^VIX', period=period)
+    if df.empty or 'Close' not in df.columns:
+        return pd.Series(dtype=float)
+    return df['Close'].dropna()
+
+
+def _date_range(days=45):
+    end_date = datetime.now().strftime('%Y-%m-%d')
+    start_date = (datetime.now() - pd.Timedelta(days=days)).strftime('%Y-%m-%d')
+    return start_date, end_date
+
+
+def _as_date_col(df):
+    if df is None or len(df) == 0:
+        return pd.DataFrame()
+    x = df.copy()
+    if 'date' not in x.columns:
+        for c in x.columns:
+            if str(c).lower() in ('日期', 'datetime', 'trade_date', 'trading_date'):
+                x = x.rename(columns={c: 'date'})
+                break
+    if 'date' in x.columns:
+        x['date'] = pd.to_datetime(x['date'], errors='coerce')
+        x = x.dropna(subset=['date']).sort_values('date')
+    return x
+
+
+def _find_column(df, include_keywords, exclude_keywords=None):
+    if df is None or df.empty:
+        return None
+    exclude_keywords = exclude_keywords or []
+    for c in df.columns:
+        name = str(c).lower()
+        if all(k.lower() in name for k in include_keywords) and not any(k.lower() in name for k in exclude_keywords):
+            return c
+    return None
+
+
+def _numeric_series(df, col):
+    if df is None or df.empty or col not in df.columns:
+        return pd.Series(dtype=float)
+    return pd.to_numeric(df[col], errors='coerce')
+
+
+def _call_finmind(method_names, **kwargs):
+    if dl is None:
+        return pd.DataFrame()
+    for method_name in method_names:
+        try:
+            fn = getattr(dl, method_name, None)
+            if fn is None:
+                continue
+            df = fn(**kwargs)
+            if df is not None and not df.empty:
+                return _as_date_col(df)
+        except TypeError:
+            try:
+                filtered_kwargs = {k: v for k, v in kwargs.items() if k in ('start_date', 'end_date', 'stock_id')}
+                df = fn(**filtered_kwargs)
+                if df is not None and not df.empty:
+                    return _as_date_col(df)
+            except Exception:
+                continue
+        except Exception:
+            continue
+    return pd.DataFrame()
+
+
+def _latest_by_trade_dates(series_df, trade_dates, value_col='value', display_func=None, default_display='N/A'):
+    out = []
+    if series_df is None or series_df.empty or 'date' not in series_df.columns or value_col not in series_df.columns:
+        for _ in trade_dates:
+            out.append({'value': None, 'display': default_display, 'score': 0.0})
+        return out
+
+    x = series_df.copy()
+    x['date'] = pd.to_datetime(x['date'], errors='coerce')
+    x = x.dropna(subset=['date']).sort_values('date')
+    x[value_col] = pd.to_numeric(x[value_col], errors='coerce')
+
+    for d in trade_dates:
+        d = pd.to_datetime(d)
+        part = x[x['date'] <= d]
+        value = None if part.empty else safe_float(part.iloc[-1][value_col])
+        display = default_display if value is None else (display_func(value) if display_func else f'{value:.2f}')
+        score = 0.0
+        if value is not None and 'score' in x.columns:
+            score = safe_float(part.iloc[-1].get('score'), 0.0) or 0.0
+        out.append({'value': value, 'display': display, 'score': score})
+    return out
+
+
+def _normalize_score(score):
+    return max(-1.0, min(1.0, safe_float(score, 0.0) or 0.0))
+
+
+def _score_label(score):
+    score = safe_float(score, 0.0) or 0.0
+    if score >= 0.25:
+        return '偏多'
+    if score <= -0.25:
+        return '偏空'
+    return '中性'
+
+
+def _score_class(score):
+    return 'pos' if (safe_float(score, 0.0) or 0.0) >= 0 else 'neg'
+
+
+def _td_class_by_value(value):
+    try:
+        if isinstance(value, str) and value.startswith('+'):
+            return 'pos'
+        if isinstance(value, str) and value.startswith('-'):
+            return 'neg'
+        fv = float(str(value).replace('%', '').replace('+', '').replace(',', ''))
+        return 'pos' if fv >= 0 else 'neg'
+    except Exception:
+        return ''
+
+
+def _format_signed_number(value, digits=0):
+    if value is None:
+        return 'N/A'
+    try:
+        return f'{float(value):+,.{digits}f}'
+    except Exception:
+        return 'N/A'
+
+
+def _format_ratio(value, digits=1):
+    if value is None:
+        return 'N/A'
+    try:
+        return f'{float(value):.{digits}f}'
+    except Exception:
+        return 'N/A'
+
+
+def _score_by_threshold(value, pos_threshold, neg_threshold, pos_score=0.25, neg_score=-0.25):
+    value = safe_float(value)
+    if value is None:
+        return 0.0
+    if value >= pos_threshold:
+        return pos_score
+    if value <= neg_threshold:
+        return neg_score
+    return 0.0
+
+
+def fetch_tw_foreign_futures_feature(start_date=None, end_date=None):
+    start_date, end_date = (start_date, end_date) if start_date and end_date else _date_range(90)
+    df = _call_finmind(
+        [
+            'taiwan_futures_institutional_investors',
+            'taiwan_futures_institutional_investors_report',
+            'taiwan_futures_institutional_investors_open_interest',
+        ],
+        start_date=start_date,
+        end_date=end_date,
+    )
+    if df.empty:
+        return pd.DataFrame(columns=['date', 'value', 'score'])
+
+    work = df.copy()
+    for c in work.columns:
+        cs = str(c).lower()
+        if cs in ('name', '身份別', 'institutional_investors', 'investor', 'investor_type'):
+            work = work[work[c].astype(str).str.contains('外資|Foreign', case=False, na=False)]
+            break
+
+    for c in work.columns:
+        cs = str(c).lower()
+        if cs in ('commodity_id', '契約', 'contract', 'contract_name', 'futures_id'):
+            tx = work[work[c].astype(str).str.contains('TX|臺股期貨|台股期貨|加權', case=False, na=False)]
+            if not tx.empty:
+                work = tx
+            break
+
+    long_col = short_col = net_col = None
+    for ks in [['open', 'interest', 'buy'], ['open_interest', 'buy'], ['多方', '未平倉'], ['買方', '未平倉'], ['long', 'open'], ['long']]:
+        long_col = _find_column(work, ks)
+        if long_col is not None:
+            break
+    for ks in [['open', 'interest', 'sell'], ['open_interest', 'sell'], ['空方', '未平倉'], ['賣方', '未平倉'], ['short', 'open'], ['short']]:
+        short_col = _find_column(work, ks)
+        if short_col is not None:
+            break
+    for ks in [['net'], ['未平倉', '淨'], ['多空', '淨'], ['買賣', '淨']]:
+        net_col = _find_column(work, ks)
+        if net_col is not None:
+            break
+
+    if long_col is not None and short_col is not None:
+        work['value'] = _numeric_series(work, long_col) - _numeric_series(work, short_col)
+    elif net_col is not None:
+        work['value'] = _numeric_series(work, net_col)
+    else:
+        return pd.DataFrame(columns=['date', 'value', 'score'])
+
+    if 'date' not in work.columns:
+        return pd.DataFrame(columns=['date', 'value', 'score'])
+    out = work.groupby('date', as_index=False)['value'].sum().dropna()
+    out['score'] = out['value'].apply(lambda x: _score_by_threshold(x, 5000, -5000))
+    return out[['date', 'value', 'score']]
+
+
+def fetch_tw_pcr_feature(start_date=None, end_date=None):
+    start_date, end_date = (start_date, end_date) if start_date and end_date else _date_range(90)
+    df = _call_finmind(
+        [
+            'taiwan_option_put_call_ratio',
+            'taiwan_option_put_call_ratio_report',
+            'taiwan_option_put_call_ratio_daily',
+        ],
+        start_date=start_date,
+        end_date=end_date,
+    )
+    if df.empty:
+        return pd.DataFrame(columns=['date', 'value', 'score'])
+
+    ratio_col = None
+    for ks in [['put', 'call', 'ratio'], ['pcr'], ['賣權', '買權', '比'], ['買賣權', '比']]:
+        ratio_col = _find_column(df, ks)
+        if ratio_col is not None:
+            break
+
+    if ratio_col is None:
+        put_col = _find_column(df, ['put']) or _find_column(df, ['賣權'])
+        call_col = _find_column(df, ['call']) or _find_column(df, ['買權'])
+        if put_col is not None and call_col is not None:
+            denom = _numeric_series(df, call_col).replace(0, np.nan)
+            df['value'] = _numeric_series(df, put_col) / denom * 100
+        else:
+            return pd.DataFrame(columns=['date', 'value', 'score'])
+    else:
+        df['value'] = _numeric_series(df, ratio_col)
+
+    out = df[['date', 'value']].dropna().copy()
+    def pcr_score(x):
+        x = safe_float(x)
+        if x is None:
+            return 0.0
+        if x >= 130:
+            return 0.20
+        if x >= 100:
+            return 0.10
+        if x <= 80:
+            return -0.20
+        return 0.0
+    out['score'] = out['value'].apply(pcr_score)
+    return out[['date', 'value', 'score']]
+
+
+def fetch_tw_retail_sentiment_feature(start_date=None, end_date=None):
+    start_date, end_date = (start_date, end_date) if start_date and end_date else _date_range(90)
+    df = _call_finmind(
+        [
+            'taiwan_futures_retail_investors',
+            'taiwan_futures_retail_long_short_ratio',
+            'taiwan_futures_retail_sentiment',
+            'taiwan_futures_small_trader_ratio',
+        ],
+        start_date=start_date,
+        end_date=end_date,
+    )
+    if df.empty:
+        return pd.DataFrame(columns=['date', 'value', 'score'])
+
+    ratio_col = None
+    for ks in [['retail'], ['散戶'], ['小台'], ['small', 'trader'], ['long', 'short', 'ratio'], ['多空', '比']]:
+        ratio_col = _find_column(df, ks)
+        if ratio_col is not None:
+            break
+    if ratio_col is None:
+        return pd.DataFrame(columns=['date', 'value', 'score'])
+
+    out = df[['date']].copy()
+    out['value'] = _numeric_series(df, ratio_col)
+    out = out.dropna()
+    def retail_score(x):
+        x = safe_float(x)
+        if x is None:
+            return 0.0
+        if x >= 60:
+            return -0.20
+        if x <= 40:
+            return 0.20
+        return 0.0
+    out['score'] = out['value'].apply(retail_score)
+    return out[['date', 'value', 'score']]
+
+
+def fetch_tw_top10_traders_feature(start_date=None, end_date=None):
+    start_date, end_date = (start_date, end_date) if start_date and end_date else _date_range(90)
+    df = _call_finmind(
+        [
+            'taiwan_futures_top10_traders',
+            'taiwan_futures_top10_dealers',
+            'taiwan_futures_large_trader_open_interest',
+            'taiwan_futures_trader_and_volume_report',
+        ],
+        start_date=start_date,
+        end_date=end_date,
+    )
+    if df.empty:
+        return pd.DataFrame(columns=['date', 'value', 'score'])
+
+    long_col = short_col = net_col = None
+    for ks in [['top', '10', 'net'], ['十大', '淨'], ['net']]:
+        net_col = _find_column(df, ks)
+        if net_col is not None:
+            break
+    for ks in [['top', '10', 'long'], ['十大', '多'], ['long']]:
+        long_col = _find_column(df, ks)
+        if long_col is not None:
+            break
+    for ks in [['top', '10', 'short'], ['十大', '空'], ['short']]:
+        short_col = _find_column(df, ks)
+        if short_col is not None:
+            break
+
+    if net_col is not None:
+        df['value'] = _numeric_series(df, net_col)
+    elif long_col is not None and short_col is not None:
+        df['value'] = _numeric_series(df, long_col) - _numeric_series(df, short_col)
+    else:
+        return pd.DataFrame(columns=['date', 'value', 'score'])
+
+    out = df.groupby('date', as_index=False)['value'].sum().dropna()
+    out['score'] = out['value'].apply(lambda x: _score_by_threshold(x, 1000, -1000))
+    return out[['date', 'value', 'score']]
+
+
+def get_tw_four_dimensional_data(trade_dates):
+    start_date, end_date = _date_range(120)
+    foreign_fut = fetch_tw_foreign_futures_feature(start_date, end_date)
+    pcr = fetch_tw_pcr_feature(start_date, end_date)
+    retail = fetch_tw_retail_sentiment_feature(start_date, end_date)
+    top10 = fetch_tw_top10_traders_feature(start_date, end_date)
+
+    ff_values = _latest_by_trade_dates(foreign_fut, trade_dates, display_func=lambda x: _format_signed_number(x, 0))
+    pcr_values = _latest_by_trade_dates(pcr, trade_dates, display_func=lambda x: _format_ratio(x, 1))
+    retail_values = _latest_by_trade_dates(retail, trade_dates, display_func=lambda x: _format_ratio(x, 1))
+    top10_values = _latest_by_trade_dates(top10, trade_dates, display_func=lambda x: _format_signed_number(x, 0))
+
+    dims = []
+    for i in range(len(trade_dates)):
+        vals = [ff_values[i], pcr_values[i], retail_values[i], top10_values[i]]
+        real_count = sum(1 for v in vals if v['value'] is not None)
+        score = sum(v['score'] for v in vals) / real_count if real_count else 0.0
+        dims.append({
+            'Foreign_Fut': ff_values[i],
+            'PCR_Ratio': pcr_values[i],
+            'Retail_Sentiment': retail_values[i],
+            'Top_10_Traders': top10_values[i],
+            'score': _normalize_score(score),
+            'real_count': real_count,
+        })
+    return dims
+def fetch_tw_foreign_spot_feature(start_date=None, end_date=None):
+    """Real-data TW dimension: foreign spot net buy/sell in 億. No mock fallback."""
+    start_date, end_date = (start_date, end_date) if start_date and end_date else _date_range(90)
+
+    candidates = []
+
+    # FinMind commonly exposes institutional investor flows by stock_id.
+    # Some environments support MI_INDEX for market-level aggregates; if not,
+    # we simply return empty and let the dashboard show N/A.
+    if dl is not None:
+        for kwargs in [
+            {'stock_id': 'MI_INDEX', 'start_date': start_date, 'end_date': end_date},
+            {'stock_id': 'TAIEX', 'start_date': start_date, 'end_date': end_date},
+            {'start_date': start_date, 'end_date': end_date},
+        ]:
+            try:
+                fn = getattr(dl, 'taiwan_stock_institutional_investors', None)
+                if fn is None:
+                    continue
+                df = fn(**kwargs)
+                if df is not None and not df.empty:
+                    candidates.append(_as_date_col(df))
+            except Exception:
+                continue
+
+    if not candidates:
+        return pd.DataFrame(columns=['date', 'value', 'score'])
+
+    work = pd.concat(candidates, ignore_index=True)
+    work = _as_date_col(work)
+    if work.empty or 'date' not in work.columns:
+        return pd.DataFrame(columns=['date', 'value', 'score'])
+
+    # Prefer 外資 / Foreign rows when an investor-name column exists.
+    name_col = None
+    for c in work.columns:
+        if str(c).lower() in ('name', 'institutional_investors', 'investor', 'investor_type') or str(c) in ('身份別', '法人', '投資人'):
+            name_col = c
+            break
+    if name_col is not None:
+        filtered = work[work[name_col].astype(str).str.contains('外資|Foreign', case=False, na=False)]
+        if not filtered.empty:
+            work = filtered
+
+    buy_col = _find_column(work, ['buy']) or _find_column(work, ['買'])
+    sell_col = _find_column(work, ['sell']) or _find_column(work, ['賣'])
+    net_col = _find_column(work, ['net']) or _find_column(work, ['買賣', '超']) or _find_column(work, ['淨'])
+
+    if buy_col is not None and sell_col is not None:
+        work['value'] = _numeric_series(work, buy_col) - _numeric_series(work, sell_col)
+    elif net_col is not None:
+        work['value'] = _numeric_series(work, net_col)
+    else:
+        return pd.DataFrame(columns=['date', 'value', 'score'])
+
+    out = work.groupby('date', as_index=False)['value'].sum().dropna()
+
+    # Try to normalize to 億. Different sources may return shares, dollars, or lots.
+    # If the absolute value is huge, assume it is TWD and divide by 1e8.
+    # Otherwise keep as-is and label still remains a market-flow proxy.
+    if not out.empty and out['value'].abs().median() > 1_000_000:
+        out['value'] = out['value'] / 100_000_000
+
+    out['score'] = out['value'].apply(lambda x: _score_by_threshold(x, 50, -50, 0.25, -0.25))
+    return out[['date', 'value', 'score']]
+
+
+def fetch_real_macro_data(days=5):
+    """Build a Taiwan Macro Wave dataframe from real sources only.
+
+    Columns:
+      Date, Spot, Future, PCR, Retail, Top10, Score, RealCount
+
+    No mock fallback is used. Missing data remains None/N/A and the score is
+    calculated only from dimensions that actually returned real data.
+    """
+    log('[DATA] 啟動真實大盤籌碼波段引擎...')
+
+    index_df = _download_macro_index_df(region='TW', period='6mo')
+    if index_df.empty:
+        return pd.DataFrame(columns=['Date', 'Spot', 'Future', 'PCR', 'Retail', 'Top10', 'Score', 'RealCount'])
+
+    last_rows = index_df.tail(days).copy()
+    trade_dates = list(last_rows.index)
+    start_date, end_date = _date_range(160)
+
+    spot_df = fetch_tw_foreign_spot_feature(start_date, end_date)
+    future_df = fetch_tw_foreign_futures_feature(start_date, end_date)
+    pcr_df = fetch_tw_pcr_feature(start_date, end_date)
+    retail_df = fetch_tw_retail_sentiment_feature(start_date, end_date)
+    top10_df = fetch_tw_top10_traders_feature(start_date, end_date)
+
+    spot_values = _latest_by_trade_dates(spot_df, trade_dates, display_func=lambda x: _format_signed_number(x, 1))
+    future_values = _latest_by_trade_dates(future_df, trade_dates, display_func=lambda x: _format_signed_number(x, 0))
+    pcr_values = _latest_by_trade_dates(pcr_df, trade_dates, display_func=lambda x: _format_ratio(x, 1))
+    retail_values = _latest_by_trade_dates(retail_df, trade_dates, display_func=lambda x: _format_ratio(x, 1))
+    top10_values = _latest_by_trade_dates(top10_df, trade_dates, display_func=lambda x: _format_signed_number(x, 0))
+
+    records = []
+    for i, d in enumerate(trade_dates):
+        vals = {
+            'Spot': spot_values[i],
+            'Future': future_values[i],
+            'PCR': pcr_values[i],
+            'Retail': retail_values[i],
+            'Top10': top10_values[i],
+        }
+        real_items = [v for v in vals.values() if v.get('value') is not None]
+        real_count = len(real_items)
+        dim_score = sum(safe_float(v.get('score'), 0.0) or 0.0 for v in real_items) / real_count if real_count else 0.0
+        index_score = _macro_score_from_index_row(last_rows.iloc[i])
+        final_score = _normalize_score(index_score * 0.35 + dim_score * 0.65) if real_count else index_score
+
+        records.append({
+            'Date': pd.to_datetime(d).strftime('%Y-%m-%d'),
+            'Spot': vals['Spot']['value'],
+            'Future': vals['Future']['value'],
+            'PCR': vals['PCR']['value'],
+            'Retail': vals['Retail']['value'],
+            'Top10': vals['Top10']['value'],
+            'SpotDisplay': vals['Spot']['display'],
+            'FutureDisplay': vals['Future']['display'],
+            'PCRDisplay': vals['PCR']['display'],
+            'RetailDisplay': vals['Retail']['display'],
+            'Top10Display': vals['Top10']['display'],
+            'IndexRet': safe_float(last_rows.iloc[i].get('RET')),
+            'IndexRetDisplay': 'N/A' if safe_float(last_rows.iloc[i].get('RET')) is None else f"{safe_float(last_rows.iloc[i].get('RET')):+.2f}%",
+            'Score': round(final_score, 3),
+            'RealCount': real_count,
+        })
+
+    return pd.DataFrame(records)
+
+
+def get_us_breadth_series(trade_dates):
+    tickers = ['SPY', 'QQQ', 'IWM', 'DIA', 'RSP']
+    records = {}
+    for t in tickers:
+        df = _download_yf_df(t, period='6mo')
+        if df.empty or 'Close' not in df.columns:
+            continue
+        df = df.copy()
+        df['MA20'] = ta.trend.sma_indicator(df['Close'], 20)
+        df['above'] = np.where(df['Close'] >= df['MA20'], 1, 0)
+        records[t] = df[['above']]
+
+    out = []
+    for d in trade_dates:
+        vals = []
+        for df in records.values():
+            part = df[df.index <= d]
+            if not part.empty:
+                vals.append(safe_float(part.iloc[-1]['above']))
+        if vals:
+            pct = sum(vals) / len(vals) * 100
+            score = 0.25 if pct >= 70 else (-0.25 if pct <= 40 else 0.0)
+            out.append({'value': pct, 'display': f'{pct:.0f}%', 'score': score})
+        else:
+            out.append({'value': None, 'display': 'N/A', 'score': 0.0})
+    return out
+
+
+def get_us_risk_appetite_series(trade_dates):
+    hyg = _download_yf_df('HYG', period='6mo')
+    tlt = _download_yf_df('TLT', period='6mo')
+    if hyg.empty or tlt.empty or 'Close' not in hyg.columns or 'Close' not in tlt.columns:
+        return [{'value': None, 'display': 'N/A', 'score': 0.0} for _ in trade_dates]
+
+    spread = pd.DataFrame(index=hyg.index.union(tlt.index)).sort_index()
+    spread['HYG'] = hyg['Close'].reindex(spread.index).ffill()
+    spread['TLT'] = tlt['Close'].reindex(spread.index).ffill()
+    spread['value'] = spread['HYG'].pct_change(20) * 100 - spread['TLT'].pct_change(20) * 100
+    spread = spread.dropna(subset=['value']).reset_index().rename(columns={'index': 'date'})
+    spread['score'] = spread['value'].apply(lambda x: 0.25 if x >= 2 else (-0.25 if x <= -2 else 0.0))
+    return _latest_by_trade_dates(spread[['date', 'value', 'score']], trade_dates, display_func=lambda x: f'{x:+.1f}%')
+
+
+def get_us_four_dimensional_data(trade_dates, index_df):
+    index_values = []
+    for d in trade_dates:
+        part = index_df[index_df.index <= d]
+        if part.empty:
+            index_values.append({'value': None, 'display': 'N/A', 'score': 0.0})
+            continue
+        row = part.iloc[-1]
+        ret = safe_float(row.get('RET'))
+        close = safe_float(row.get('Close'))
+        ma20 = safe_float(row.get('MA20'))
+        score = 0.0
+        if close is not None and ma20 is not None:
+            score += 0.20 if close >= ma20 else -0.20
+        if ret is not None:
+            score += 0.15 if ret >= 0 else -0.15
+        index_values.append({'value': ret, 'display': 'N/A' if ret is None else f'{ret:+.2f}%', 'score': _normalize_score(score)})
+
+    vix_series = _download_vix_series(period='2mo')
+    if not vix_series.empty:
+        vix_df = vix_series.reset_index()
+        vix_df.columns = ['date', 'value']
+        def vix_score(x):
+            x = safe_float(x)
+            if x is None: return 0.0
+            if x >= 25: return -0.30
+            if x >= 20: return -0.15
+            if x <= 15: return 0.15
+            return 0.0
+        vix_df['score'] = vix_df['value'].apply(lambda x: _normalize_score(vix_score(x)))
+        vix_values = _latest_by_trade_dates(vix_df[['date', 'value', 'score']], trade_dates, display_func=lambda x: f'{x:.1f}')
+    else:
+        vix_values = [{'value': None, 'display': 'N/A', 'score': 0.0} for _ in trade_dates]
+
+    breadth_values = get_us_breadth_series(trade_dates)
+    risk_appetite_values = get_us_risk_appetite_series(trade_dates)
+
+    dims = []
+    for i in range(len(trade_dates)):
+        vals = [index_values[i], vix_values[i], breadth_values[i], risk_appetite_values[i]]
+        real_count = sum(1 for x in vals if x['value'] is not None)
+        score = sum(x['score'] for x in vals) / real_count if real_count else 0.0
+        dims.append({
+            'Index_Momentum': index_values[i],
+            'VIX_Risk': vix_values[i],
+            'Breadth_Proxy': breadth_values[i],
+            'Risk_Appetite': risk_appetite_values[i],
+            'score': _normalize_score(score),
+            'real_count': real_count,
+        })
+    return dims
+
+
+def _macro_score_from_index_row(row):
+    score = 0.0
+    close = safe_float(row.get('Close'))
+    ma20 = safe_float(row.get('MA20'))
+    ret = safe_float(row.get('RET'))
+    vol_ratio = safe_float(row.get('VOL_RATIO'))
+
+    if close is not None and ma20 is not None:
+        score += 0.35 if close >= ma20 else -0.35
+    if ret is not None:
+        if ret >= 1.5:
+            score += 0.25
+        elif ret >= 0:
+            score += 0.10
+        elif ret <= -1.5:
+            score -= 0.25
+        else:
+            score -= 0.10
+    if vol_ratio is not None and ret is not None:
+        if vol_ratio >= 1.2 and ret > 0:
+            score += 0.15
+        elif vol_ratio >= 1.2 and ret < 0:
+            score -= 0.15
+    return _normalize_score(score)
+
+
+def get_macro_dashboard_data(region='TW'):
+    region = 'US' if str(region).upper() == 'US' else 'TW'
+    index_df = _download_macro_index_df(region=region, period='6mo')
+
+    if index_df.empty:
+        rows = []
+        for i in range(3):
+            rows.append({'label': '今日' if i == 0 else f'T-{i}', 'score': 0.0, 'real_count': 0, 'fields': [], 'index_ret_display': 'N/A', 'sentiment': '中性', 'data_status': '無資料'})
+        return {'rows': rows, 'latest_score': 0.0, 'latest_mode': 'offensive', 'region': region}
+
+    last_rows = index_df.tail(3).copy().iloc[::-1]
+    trade_dates = list(last_rows.index)
+
+    if region == 'TW':
+        dims = get_tw_four_dimensional_data(trade_dates)
+        field_names = [('Foreign_Fut', '外資期貨'), ('PCR_Ratio', 'PCR'), ('Retail_Sentiment', '散戶多空'), ('Top_10_Traders', '十大交易人')]
+    else:
+        dims = get_us_four_dimensional_data(trade_dates, index_df)
+        field_names = [('Index_Momentum', '指數動能'), ('VIX_Risk', 'VIX'), ('Breadth_Proxy', '市場廣度'), ('Risk_Appetite', '風險偏好')]
+
+    rows = []
+    for idx, ((date, index_row), dim) in enumerate(zip(last_rows.iterrows(), dims)):
+        label = '今日' if idx == 0 else f'T-{idx}'
+        index_score = _macro_score_from_index_row(index_row)
+        dim_score = safe_float(dim.get('score'), 0.0) or 0.0
+        real_count = int(dim.get('real_count', 0) or 0)
+        total_score = _normalize_score(index_score * 0.35 + dim_score * 0.65) if real_count > 0 else index_score
+
+        fields = []
+        for key, label_name in field_names:
+            item = dim.get(key, {'display': 'N/A', 'value': None, 'score': 0.0})
+            fields.append({'key': key, 'label': label_name, 'display': item.get('display', 'N/A'), 'value': item.get('value'), 'score': safe_float(item.get('score'), 0.0) or 0.0})
+
+        ret = safe_float(index_row.get('RET'))
+        rows.append({
+            'label': label,
+            'date': pd.to_datetime(date).strftime('%Y-%m-%d'),
+            'index_ret': ret,
+            'index_ret_display': 'N/A' if ret is None else f'{ret:+.2f}%',
+            'score': total_score,
+            'sentiment': _score_label(total_score),
+            'fields': fields,
+            'real_count': real_count,
+            'data_status': '四維資料' if real_count > 0 else '價格代理',
+        })
+
+    latest_score = safe_float(rows[0]['score'], 0.0) or 0.0
+    latest_mode = 'defensive' if latest_score < -0.20 else 'offensive'
+    return {'rows': rows, 'latest_score': latest_score, 'latest_mode': latest_mode, 'region': region}
+
+
+def _tw_rf_features_from_macro_data(macro_data):
+    if not macro_data or macro_data.get('region') != 'TW' or not macro_data.get('rows'):
+        return None
+    row = macro_data['rows'][0]
+    values = {f.get('key'): f.get('value') for f in row.get('fields', [])}
+    required = ['Foreign_Fut', 'PCR_Ratio', 'Retail_Sentiment', 'Top_10_Traders']
+    if not all(values.get(k) is not None for k in required):
+        return None
+    return pd.DataFrame([{
+        'Foreign_Fut': float(values['Foreign_Fut']),
+        'PCR_Ratio': float(values['PCR_Ratio']),
+        'Retail_Sentiment': float(values['Retail_Sentiment']),
+        'Top_10_Traders': float(values['Top_10_Traders']),
+    }])
+
+
 def check_market_status(region='TW'):
     log(f'[MARKET] 正在評估 {region} 大盤系統風險...')
-    if USE_MACRO_MODEL and region == 'TW' and os.path.exists(MACRO_MODEL_PATH):
-        try:
-            rf_model = joblib.load(MACRO_MODEL_PATH)
-            mock_today_data = pd.DataFrame([[5000, 110, 2, 1000]], columns=['Foreign_Fut', 'PCR_Ratio', 'Retail_Sentiment', 'Top_10_Traders'])
-            is_bull = rf_model.predict(mock_today_data)[0]
-            if is_bull == 1: return 'offensive', 0.65
-            else: return 'defensive', -0.45
-        except Exception as e: log(f"[MARKET-WARN] 載入 RF 模型失敗: {e}")
-
     try:
-        index_ticker = '^TWII' if region == 'TW' else '^GSPC'
-        df = data_sources.download_yfinance(index_ticker, period='18mo', auto_adjust=True)
-        if df.empty: return 'defensive', -0.1
-        if isinstance(df.columns, pd.MultiIndex): df.columns = df.columns.droplevel(1)
-        df['MA20'] = ta.trend.sma_indicator(df['Close'], 20)
-        df['MA50'] = ta.trend.sma_indicator(df['Close'], 50)
-        df['MA200'] = ta.trend.sma_indicator(df['Close'], 200)
-        latest = df.iloc[-1]
+        macro_data = get_macro_dashboard_data(region)
+        score = safe_float(macro_data.get('latest_score'), 0.0) or 0.0
+        mode = macro_data.get('latest_mode', 'offensive')
 
-        close = safe_float(latest.get('Close'), 0) or 0
-        ma20 = safe_float(latest.get('MA20'))
-        ma50 = safe_float(latest.get('MA50'))
-        ma200 = safe_float(latest.get('MA200'))
-        ma200_prev = safe_float(df['MA200'].iloc[-21]) if len(df) > 220 else None
-        ret20 = close / df['Close'].iloc[-21] - 1 if len(df) > 21 and df['Close'].iloc[-21] else 0
-        high60 = df['Close'].tail(60).max()
-        drawdown60 = close / high60 - 1 if high60 else 0
-
-        score = 0.0
-        score += 0.18 if ma20 is not None and close > ma20 else -0.18
-        score += 0.22 if ma50 is not None and close > ma50 else -0.22
-        score += 0.28 if ma200 is not None and close > ma200 else -0.28
-        score += 0.12 if ma50 is not None and ma200 is not None and ma50 > ma200 else -0.12
-        score += 0.10 if ma200 is not None and ma200_prev is not None and ma200 > ma200_prev else -0.10
-        score += 0.10 if ret20 > 0 else -0.10
-        if drawdown60 < -0.10: score -= 0.18
-        elif drawdown60 > -0.04: score += 0.08
-
-        market_mode = 'offensive' if score >= 0.25 else 'defensive'
-        macro_score = max(-1.0, min(1.0, score))
-        log(f'[MARKET] {index_ticker} score={macro_score:.2f}, 20d={ret20*100:.1f}%, 60dDD={drawdown60*100:.1f}% => {market_mode}')
-        return market_mode, macro_score
+        if region == 'TW' and os.path.exists(MACRO_MODEL_PATH):
+            try:
+                rf_features = _tw_rf_features_from_macro_data(macro_data)
+                if rf_features is not None:
+                    rf_model = joblib.load(MACRO_MODEL_PATH)
+                    is_bull = rf_model.predict(rf_features)[0]
+                    return ('offensive', max(score, 0.35)) if is_bull == 1 else ('defensive', min(score, -0.35))
+                log('[MARKET-WARN] TW four-dimensional data incomplete. RF model skipped; using real index/proxy score.')
+            except Exception as e:
+                log(f'[MARKET-WARN] RF model skipped: {e}')
+        return mode, score
     except Exception as e:
         log_exception('[MARKET-ERROR]', e)
-        return 'defensive', -0.1
+        return 'offensive', 0.0
+
 
 def create_macro_dashboard_image(market_mode, macro_score, output_path, region='TW'):
-    mode_text = "🟢 多方輪動 (Offensive)" if market_mode == 'offensive' else "🔴 崩盤避險 (Defensive)"
-    mode_color = "#16a34a" if market_mode == 'offensive' else "#dc2626"
-    title_text = "台股籌碼四維趨勢報告" if region == 'TW' else "美股市場廣度趨勢報告"
-    
-    html_content = f"""
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <meta charset="UTF-8">
-        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-        <style>
-            body {{ font-family: 'Segoe UI', Tahoma, sans-serif; background: #f3f4f6; margin: 0; padding: 20px; width: 1100px; }}
-            .dashboard {{ background: white; border-radius: 12px; padding: 25px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }}
-            .header {{ display: flex; justify-content: space-between; border-bottom: 2px solid #e5e7eb; padding-bottom: 15px; margin-bottom: 20px; }}
-            .title {{ font-size: 24px; font-weight: bold; color: #1f2937; margin: 0; }}
-            .subtitle {{ font-size: 14px; color: #6b7280; margin-top: 5px; }}
-            .status-badge {{ background: {mode_color}20; color: {mode_color}; padding: 8px 16px; border-radius: 8px; font-weight: bold; font-size: 18px; border: 1px solid {mode_color}; }}
-            .content-grid {{ display: grid; grid-template-columns: 2fr 1fr; gap: 20px; }}
-            table {{ width: 100%; border-collapse: collapse; font-size: 13px; text-align: center; }}
-            th {{ background: #f8fafc; padding: 10px; border-bottom: 2px solid #e5e7eb; color: #4b5563; }}
-            td {{ padding: 10px; border-bottom: 1px solid #e5e7eb; color: #1f2937; }}
-            .neg {{ color: #dc2626; }}
-            .pos {{ color: #16a34a; }}
-            .chart-container {{ height: 300px; width: 100%; margin-top: 20px; }}
-            .summary-box {{ background: #f8fafc; border-radius: 8px; padding: 15px; border-left: 4px solid {mode_color}; }}
-        </style>
-    </head>
-    <body>
-        <div class="dashboard" id="capture-area">
-            <div class="header">
-                <div>
-                    <h1 class="title">📊 {title_text}</h1>
-                    <div class="subtitle">AI 隨機森林預測引擎 | 產生時間: {now_str()}</div>
-                </div>
-                <div class="status-badge">
-                    狀態: {mode_text} (綜合評分: {macro_score:.2f})
-                </div>
-            </div>
-            <div class="content-grid">
-                <div>
-                    <table>
-                        <tr><th>日期</th><th>大盤動能</th><th>VIX 恐慌</th><th>散戶多空</th><th>法人現貨</th><th>綜合分數</th></tr>
-                        <tr><td>今日</td><td class="pos">+2.45%</td><td class="pos">14.5</td><td class="pos">偏空</td><td class="neg">觀望</td><td style="font-weight:bold; color:{mode_color}">{macro_score:.2f}</td></tr>
-                        <tr><td>T-1</td><td class="neg">-1.50%</td><td>15.2</td><td class="neg">偏多</td><td class="neg">賣超</td><td>-0.12</td></tr>
-                        <tr><td>T-2</td><td class="neg">-2.20%</td><td class="neg">18.4</td><td class="neg">極多</td><td class="neg">大賣</td><td class="neg">-0.45</td></tr>
-                    </table>
-                    <div class="chart-container"><canvas id="trendChart"></canvas></div>
-                </div>
-                <div>
-                    <div class="summary-box">
-                        <h3 style="margin-top:0; color:#1f2937;">📝 系統判定與行動指南</h3>
-                        <p style="font-size:14px; color:#4b5563; line-height:1.6;">
-                            <b>模型解析：</b><br>
-                            根據模型推算，目前廣度與心理指標呈現 <b>{mode_text.split(' ')[1]}</b>。<br><br>
-                            <b>自動因應動作：</b><br>
-                            {"已開啟『防守避險引擎』，雷達優先掃描避險 ETF (如美債、反向或低波)，嚴格限縮乖離率。" if market_mode == 'defensive' else "處於『攻擊引擎』，資金偏多操作，雷達專注強勢突破與動能發散股。"}
-                        </p>
-                    </div>
-                    <div style="height: 220px; width: 100%; margin-top: 20px;"><canvas id="radarChart"></canvas></div>
-                </div>
-            </div>
-        </div>
-        <script>
-            const ctxLine = document.getElementById('trendChart').getContext('2d');
-            new Chart(ctxLine, {{
-                type: 'bar',
-                data: {{
-                    labels: ['T-2', 'T-1', '今日'],
-                    datasets: [{{
-                        label: '綜合分數',
-                        data: [-0.45, -0.12, {macro_score}],
-                        backgroundColor: ctx => ctx.raw > 0 ? 'rgba(22, 163, 74, 0.5)' : 'rgba(220, 38, 38, 0.5)',
-                        borderColor: ctx => ctx.raw > 0 ? 'rgb(22, 163, 74)' : 'rgb(220, 38, 38)',
-                        borderWidth: 1
-                    }}]
-                }},
-                options: {{ responsive: true, maintainAspectRatio: false, plugins: {{ legend: {{ display: false }} }} }}
-            }});
-            const ctxRadar = document.getElementById('radarChart').getContext('2d');
-            new Chart(ctxRadar, {{
-                type: 'radar',
-                data: {{
-                    labels: ['廣度', '波動率', '散戶', '大戶'],
-                    datasets: [{{ label: '目前位階', data: [60, 55, 30, 45], backgroundColor: '{mode_color}30', borderColor: '{mode_color}', pointBackgroundColor: '{mode_color}' }}]
-                }},
-                options: {{ responsive: true, maintainAspectRatio: false, scales: {{ r: {{ min: 0, max: 100 }} }} }}
-            }});
-        </script>
-    </body>
-    </html>
+    """Render Macro dashboard.
+
+    TW: dark Macro Wave Engine using real spot/futures/PCR/retail/top10 data when available.
+    US: dark four-dimensional proxy dashboard using index, VIX, breadth, and risk appetite.
+
+    This function intentionally does not use mock data. Missing data is rendered as N/A.
     """
+    region = 'US' if str(region).upper() == 'US' else 'TW'
+
+    if region == 'TW':
+        macro_df = macro_score if isinstance(macro_score, pd.DataFrame) else fetch_real_macro_data(days=5)
+        if macro_df is None or macro_df.empty:
+            macro_data = get_macro_dashboard_data(region)
+            macro_score = safe_float(macro_data.get('latest_score'), 0.0) or 0.0
+            market_mode = macro_data.get('latest_mode', market_mode)
+            macro_df = pd.DataFrame([{
+                'Date': r.get('date', r.get('label', 'N/A')),
+                'IndexRetDisplay': r.get('index_ret_display', 'N/A'),
+                'SpotDisplay': 'N/A',
+                'FutureDisplay': 'N/A',
+                'PCRDisplay': 'N/A',
+                'RetailDisplay': 'N/A',
+                'Top10Display': 'N/A',
+                'Score': safe_float(r.get('score'), 0.0) or 0.0,
+                'RealCount': 0,
+            } for r in macro_data.get('rows', [])])
+        else:
+            latest_score = safe_float(macro_df.iloc[-1].get('Score'), 0.0) or 0.0
+            macro_score = latest_score
+            market_mode = 'defensive' if latest_score < -0.20 else 'offensive'
+
+        mode_text = '🟢 波段多方輪動 (Wave Up)' if market_mode == 'offensive' else '🔴 波段防守避險 (Wave Down)'
+        mode_color = '#10b981' if market_mode == 'offensive' else '#ef4444'
+        dates = macro_df['Date'].astype(str).tolist() if 'Date' in macro_df.columns else []
+        scores = [round(safe_float(x, 0.0) or 0.0, 3) for x in macro_df.get('Score', pd.Series(dtype=float)).tolist()]
+        latest = macro_df.iloc[-1].to_dict() if not macro_df.empty else {}
+
+        table_rows = ''
+        for _, row in macro_df.tail(5).iterrows():
+            score = safe_float(row.get('Score'), 0.0) or 0.0
+            score_color = 'pos' if score >= 0 else 'neg'
+            idx_ret = row.get('IndexRetDisplay', 'N/A')
+            idx_class = _td_class_by_value(idx_ret)
+            real_count = int(safe_float(row.get('RealCount'), 0) or 0)
+            table_rows += f"""
+                        <tr>
+                            <td>{row.get('Date', 'N/A')}</td>
+                            <td class='{idx_class}'>{idx_ret}</td>
+                            <td>{row.get('SpotDisplay', 'N/A')}</td>
+                            <td>{row.get('FutureDisplay', 'N/A')}</td>
+                            <td>{row.get('PCRDisplay', 'N/A')}</td>
+                            <td>{row.get('RetailDisplay', 'N/A')}</td>
+                            <td>{row.get('Top10Display', 'N/A')}</td>
+                            <td class='{score_color}' style='font-weight:bold;'>{score:.2f}<br><span class='small'>{real_count}/5 real</span></td>
+                        </tr>
+            """
+
+        def radar_value(raw_score):
+            return max(0, min(100, 50 + (safe_float(raw_score, 0.0) or 0.0) * 100))
+
+        # Build radar from latest actual values using the same threshold rules.
+        radar_scores = []
+        radar_scores.append(_score_by_threshold(latest.get('Future'), 5000, -5000))
+        radar_scores.append(_score_by_threshold(latest.get('Spot'), 50, -50, 0.25, -0.25))
+        pcr = safe_float(latest.get('PCR'))
+        radar_scores.append(0.20 if pcr is not None and pcr >= 130 else (-0.20 if pcr is not None and pcr <= 80 else 0.0))
+        retail = safe_float(latest.get('Retail'))
+        radar_scores.append(-0.20 if retail is not None and retail >= 60 else (0.20 if retail is not None and retail <= 40 else 0.0))
+        radar_scores.append(_score_by_threshold(latest.get('Top10'), 1000, -1000))
+        radar_values = [radar_value(s) for s in radar_scores]
+
+        html_content = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+            <style>
+                body {{ font-family: 'Segoe UI', Tahoma, sans-serif; background: #0f172a; margin: 0; padding: 20px; width: 1250px; color: #f8fafc; }}
+                .dashboard {{ background: #1e293b; border-radius: 16px; padding: 30px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); border: 1px solid #334155; }}
+                .header {{ display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #334155; padding-bottom: 20px; margin-bottom: 25px; }}
+                .title {{ font-size: 28px; font-weight: 800; color: #f8fafc; margin: 0; letter-spacing: 1px; }}
+                .subtitle {{ font-size: 14px; color: #94a3b8; margin-top: 8px; }}
+                .status-badge {{ background: {mode_color}20; color: {mode_color}; padding: 12px 24px; border-radius: 12px; font-weight: 800; font-size: 20px; border: 2px solid {mode_color}; letter-spacing: 1px; }}
+                .content-grid {{ display: grid; grid-template-columns: 1.9fr 1fr; gap: 30px; }}
+                table {{ width: 100%; border-collapse: separate; border-spacing: 0; font-size: 13px; text-align: center; border-radius: 12px; overflow: hidden; }}
+                th {{ background: #334155; padding: 13px; color: #cbd5e1; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; }}
+                td {{ padding: 13px; background: #1e293b; border-bottom: 1px solid #334155; color: #f1f5f9; }}
+                .small {{ font-size: 10px; color: #94a3b8; }}
+                .neg {{ color: #ef4444; }} .pos {{ color: #10b981; }}
+                .summary-box {{ background: #0f172a; border-radius: 12px; padding: 20px; border-left: 5px solid {mode_color}; box-shadow: inset 0 2px 4px rgba(0,0,0,0.1); }}
+                .chart-container {{ height: 260px; width: 100%; margin-top: 25px; background: #0f172a; padding: 15px; border-radius: 12px; box-sizing: border-box; }}
+                .note {{ margin-top: 12px; color: #94a3b8; font-size: 12px; line-height: 1.5; }}
+            </style>
+        </head>
+        <body>
+            <div class="dashboard" id="capture-area">
+                <div class="header">
+                    <div>
+                        <h1 class="title">🌊 台股籌碼波段引擎 (Macro Wave Engine)</h1>
+                        <div class="subtitle">No-mock 籌碼五維波段分析 | 產生時間: {now_str()}</div>
+                    </div>
+                    <div class="status-badge">系統狀態: {mode_text} | Score {macro_score:.2f}</div>
+                </div>
+                <div class="content-grid">
+                    <div>
+                        <table>
+                            <tr><th>交易日期</th><th>指數動能</th><th>外資現貨</th><th>外資期貨</th><th>PCR</th><th>散戶多空</th><th>十大交易人</th><th>波段分數</th></tr>
+                            {table_rows}
+                        </table>
+                        <div class="note">註：本面板不使用 mock 固定資料；資料源缺欄位會顯示 N/A，分數只使用實際取得的維度與真實指數代理計算。</div>
+                        <div class="chart-container"><canvas id="trendChart"></canvas></div>
+                    </div>
+                    <div>
+                        <div class="summary-box">
+                            <h3 style="margin-top:0; color:#e2e8f0; font-size: 18px; border-bottom: 1px solid #334155; padding-bottom: 10px;">🧭 波段行動指南</h3>
+                            <p style="font-size:15px; color:#cbd5e1; line-height:1.8;">
+                                <b>中期趨勢定調：</b><br>
+                                系統以外資現貨、外資期貨、PCR、散戶多空、十大交易人與指數動能整合判斷。<br><br>
+                                <b>資產配置建議：</b><br>
+                                {'市場處於偏多波段。適合偏多觀察，優先鎖定強勢突破與中大型權值股。' if market_mode == 'offensive' else '波段風險升高。建議提高現金水位，或轉向高股息、防禦型 ETF 觀察。'}
+                            </p>
+                        </div>
+                        <div class="chart-container" style="height: 220px;"><canvas id="radarChart"></canvas></div>
+                    </div>
+                </div>
+            </div>
+            <script>
+                Chart.defaults.color = '#94a3b8';
+                Chart.defaults.font.family = 'Segoe UI';
+                const ctxLine = document.getElementById('trendChart').getContext('2d');
+                new Chart(ctxLine, {{
+                    type: 'bar',
+                    data: {{
+                        labels: {json.dumps(dates, ensure_ascii=False)},
+                        datasets: [{{
+                            label: '波段動能分數',
+                            data: {json.dumps(scores)},
+                            backgroundColor: ctx => ctx.raw >= 0 ? 'rgba(16, 185, 129, 0.8)' : 'rgba(239, 68, 68, 0.8)',
+                            borderRadius: 6
+                        }}]
+                    }},
+                    options: {{ responsive: true, maintainAspectRatio: false, plugins: {{ legend: {{ display: false }}, title: {{ display: true, text: '近五日波段動能演進', color: '#e2e8f0' }} }}, scales: {{ y: {{ grid: {{ color: '#334155' }} }}, x: {{ grid: {{ display: false }} }} }} }}
+                }});
+                const ctxRadar = document.getElementById('radarChart').getContext('2d');
+                new Chart(ctxRadar, {{
+                    type: 'radar',
+                    data: {{
+                        labels: ['期貨動能', '現貨買盤', 'PCR', '散戶反指標', '十大交易人'],
+                        datasets: [{{ data: {json.dumps(radar_values)}, backgroundColor: '{mode_color}40', borderColor: '{mode_color}', borderWidth: 2, pointBackgroundColor: '{mode_color}' }}]
+                    }},
+                    options: {{ responsive: true, maintainAspectRatio: false, plugins: {{ legend: {{ display: false }} }}, scales: {{ r: {{ min: 0, max: 100, grid: {{ color: '#334155' }}, angleLines: {{ color: '#334155' }}, ticks: {{ display: false }} }} }} }}
+                }});
+            </script>
+        </body>
+        </html>
+        """
+
+    else:
+        macro_data = get_macro_dashboard_data(region)
+        rows = macro_data.get('rows', [])
+        if rows:
+            macro_score = safe_float(macro_data.get('latest_score'), macro_score) or macro_score
+            market_mode = macro_data.get('latest_mode', market_mode)
+
+        mode_text = '🟢 美股風險偏好回升 (Risk On)' if market_mode == 'offensive' else '🔴 美股風險降溫 (Risk Off)'
+        mode_color = '#10b981' if market_mode == 'offensive' else '#ef4444'
+        chart_labels = []
+        chart_scores = []
+        table_rows = ''
+        for r in rows[:5]:
+            field_map = {f['key']: f for f in r.get('fields', [])}
+            score = safe_float(r.get('score'), 0.0) or 0.0
+            score_class = 'pos' if score >= 0 else 'neg'
+            idx_ret = r.get('index_ret_display', 'N/A')
+            idx_class = _td_class_by_value(idx_ret)
+            table_rows += f"""
+                        <tr>
+                            <td>{r.get('label', 'N/A')}<br><span class='small'>{r.get('date', '')}</span></td>
+                            <td class='{idx_class}'>{idx_ret}</td>
+                            <td>{field_map.get('VIX_Risk', {}).get('display', 'N/A')}</td>
+                            <td>{field_map.get('Breadth_Proxy', {}).get('display', 'N/A')}</td>
+                            <td>{field_map.get('Risk_Appetite', {}).get('display', 'N/A')}</td>
+                            <td class='{score_class}' style='font-weight:bold;'>{score:.2f}</td>
+                        </tr>
+            """
+            chart_labels.append(r.get('label', 'N/A'))
+            chart_scores.append(round(score, 3))
+
+        radar_values = [50, 50, 50, 50]
+        if rows:
+            latest_fields = rows[0].get('fields', [])
+            radar_values = [max(0, min(100, 50 + (safe_float(f.get('score'), 0.0) or 0.0) * 100)) for f in latest_fields]
+            while len(radar_values) < 4:
+                radar_values.append(50)
+            radar_values = radar_values[:4]
+
+        html_content = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+            <style>
+                body {{ font-family: 'Segoe UI', Tahoma, sans-serif; background: #0f172a; margin: 0; padding: 20px; width: 1150px; color: #f8fafc; }}
+                .dashboard {{ background: #1e293b; border-radius: 16px; padding: 30px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); border: 1px solid #334155; }}
+                .header {{ display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #334155; padding-bottom: 20px; margin-bottom: 25px; }}
+                .title {{ font-size: 28px; font-weight: 800; color: #f8fafc; margin: 0; letter-spacing: 1px; }}
+                .subtitle {{ font-size: 14px; color: #94a3b8; margin-top: 8px; }}
+                .status-badge {{ background: {mode_color}20; color: {mode_color}; padding: 12px 24px; border-radius: 12px; font-weight: 800; font-size: 20px; border: 2px solid {mode_color}; }}
+                .content-grid {{ display: grid; grid-template-columns: 1.8fr 1fr; gap: 30px; }}
+                table {{ width: 100%; border-collapse: separate; border-spacing: 0; font-size: 14px; text-align: center; border-radius: 12px; overflow: hidden; }}
+                th {{ background: #334155; padding: 14px; color: #cbd5e1; font-weight: 700; }}
+                td {{ padding: 14px; background: #1e293b; border-bottom: 1px solid #334155; color: #f1f5f9; }}
+                .small {{ font-size: 10px; color: #94a3b8; }}
+                .neg {{ color: #ef4444; }} .pos {{ color: #10b981; }}
+                .summary-box {{ background: #0f172a; border-radius: 12px; padding: 20px; border-left: 5px solid {mode_color}; }}
+                .chart-container {{ height: 260px; width: 100%; margin-top: 25px; background: #0f172a; padding: 15px; border-radius: 12px; box-sizing: border-box; }}
+            </style>
+        </head>
+        <body>
+            <div class="dashboard" id="capture-area">
+                <div class="header">
+                    <div>
+                        <h1 class="title">🇺🇸 美股四維風險偏好引擎</h1>
+                        <div class="subtitle">S&P 500 / VIX / Breadth / HYG-TLT proxy | 產生時間: {now_str()}</div>
+                    </div>
+                    <div class="status-badge">系統狀態: {mode_text} | Score {macro_score:.2f}</div>
+                </div>
+                <div class="content-grid">
+                    <div>
+                        <table>
+                            <tr><th>日期</th><th>S&P 動能</th><th>VIX</th><th>市場廣度</th><th>風險偏好</th><th>分數</th></tr>
+                            {table_rows}
+                        </table>
+                        <div class="chart-container"><canvas id="trendChart"></canvas></div>
+                    </div>
+                    <div>
+                        <div class="summary-box">
+                            <h3 style="margin-top:0; color:#e2e8f0;">🧭 美股行動指南</h3>
+                            <p style="font-size:15px; color:#cbd5e1; line-height:1.8;">
+                                {'風險偏好偏強，適合觀察大型成長股與突破型標的。' if market_mode == 'offensive' else '風險偏好偏弱，建議提高防守、觀察美債或低波動資產。'}
+                            </p>
+                        </div>
+                        <div class="chart-container" style="height: 220px;"><canvas id="radarChart"></canvas></div>
+                    </div>
+                </div>
+            </div>
+            <script>
+                Chart.defaults.color = '#94a3b8';
+                const ctxLine = document.getElementById('trendChart').getContext('2d');
+                new Chart(ctxLine, {{ type: 'bar', data: {{ labels: {json.dumps(list(reversed(chart_labels or ['T-2','T-1','今日'])), ensure_ascii=False)}, datasets: [{{ data: {json.dumps(list(reversed(chart_scores or [0,0,0])))}, backgroundColor: ctx => ctx.raw >= 0 ? 'rgba(16,185,129,0.8)' : 'rgba(239,68,68,0.8)', borderRadius: 6 }}] }}, options: {{ responsive: true, maintainAspectRatio: false, plugins: {{ legend: {{ display: false }} }} }} }});
+                const ctxRadar = document.getElementById('radarChart').getContext('2d');
+                new Chart(ctxRadar, {{ type: 'radar', data: {{ labels: ['指數', 'VIX', '廣度', '風險偏好'], datasets: [{{ data: {json.dumps(radar_values)}, backgroundColor: '{mode_color}40', borderColor: '{mode_color}', pointBackgroundColor: '{mode_color}' }}] }}, options: {{ responsive: true, maintainAspectRatio: false, plugins: {{ legend: {{ display: false }} }}, scales: {{ r: {{ min: 0, max: 100, grid: {{ color: '#334155' }}, angleLines: {{ color: '#334155' }}, ticks: {{ display: false }} }} }} }} }});
+            </script>
+        </body>
+        </html>
+        """
+
     try:
         with sync_playwright() as p:
             browser = p.chromium.launch(headless=True)
             page = browser.new_page()
             page.set_content(html_content)
-            page.wait_for_timeout(1500)
-            element = page.locator("#capture-area")
+            page.wait_for_timeout(2000)
+            element = page.locator('#capture-area')
             element.screenshot(path=output_path, omit_background=True)
             browser.close()
             return output_path
     except Exception as e:
-        log_exception(f'[PLOT-ERROR] 大盤儀表板生成失敗', e)
+        log_exception('[PLOT-ERROR] 大盤儀表板生成失敗', e)
         return None
 
 def get_defensive_etf_pool(region='TW'):
@@ -396,6 +1188,10 @@ def get_us_defensive_etf_pool():
 # ==========================================
 # Basic utilities
 # ==========================================
+def now_str(): return datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+def log(msg): print(f'[{now_str()}] {msg}', flush=True)
+def log_exception(prefix, exc): log(f'{prefix}: {exc}'); print(traceback.format_exc(), flush=True)
+
 def safe_float(v, default=None):
     try:
         if v is None: return default
@@ -418,8 +1214,6 @@ def normalize_ticker(ticker):
     ticker = str(ticker).strip().upper()
     if ticker.isdigit() and len(ticker) == 4:
         return ticker + '.TW'
-    if not ticker.endswith(('.TW', '.TWO')):
-        ticker = ticker.replace('.', '-')
     return ticker
 
 def run_cmd(cmd, cwd, timeout_sec, step_name):
@@ -437,20 +1231,6 @@ def update_my_tw_coverage(chat_id=None):
     
 def is_us_ticker(ticker):
     return not ticker.endswith(('.TW', '.TWO'))
-
-def configured_scan_universe(region):
-    raw = os.environ.get(f'SCAN_UNIVERSE_{region.upper()}', '').strip()
-    if not raw:
-        return []
-    tickers = []
-    for item in re.split(r'[,;\s]+', raw):
-        if not item.strip():
-            continue
-        ticker = normalize_ticker(item)
-        if region.upper() == 'US':
-            ticker = ticker.replace('.US', '').replace('.', '-')
-        tickers.append(ticker)
-    return list(dict.fromkeys(tickers))
 
 # ==========================================
 # Data collection
@@ -503,11 +1283,28 @@ def get_company_profile(ticker_num, ticker_full=None, yf_info=None):
         return {'profile': '讀取失敗', 'industry': 'N/A', 'raw_text': None}
 
 def fetch_goodinfo_data(ticker_num):
+    url_main = f'https://goodinfo.tw/tw/StockDetail.asp?STOCK_ID={ticker_num}'
+    url_chip = f'https://goodinfo.tw/tw/ShowBuySaleChart.asp?STOCK_ID={ticker_num}&CHT_CAT=DATE'
+    main_html, chip_html = "", ""
     try:
-        return data_sources.fetch_goodinfo_pages(ticker_num)
-    except Exception as e:
-        log(f"[Goodinfo-WARN] fetch failed for {ticker_num}: {e}")
-        return "", ""
+        with sync_playwright() as p:
+            browser = p.chromium.launch(headless=True)
+            context = browser.new_context(user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64)')
+            page = context.new_page()
+            try: page.goto(url_main, wait_until='domcontentloaded', timeout=15000)
+            except Exception: pass
+            page.wait_for_timeout(2000)
+            try: main_html = page.content()
+            except Exception: pass
+            
+            try: page.goto(url_chip, wait_until='domcontentloaded', timeout=15000)
+            except Exception: pass
+            page.wait_for_timeout(2000)
+            try: chip_html = page.content()
+            except Exception: pass
+            browser.close()
+    except Exception: pass
+    return main_html, chip_html
 
 def parse_financials_from_mytwcoverage(md_text):
     result = {'eps_ttm': None, 'eps_latest_quarter': None, 'single_month_yoy': None, 'single_month_mom': None, 'source': []}
@@ -672,27 +1469,6 @@ def merge_financial_snapshot(ticker_full, md_text, yf_info=None):
         teps = safe_float(yf_info.get('trailingEps')) if yf_info else None
         rg = safe_float(yf_info.get('revenueGrowth')) if yf_info else None
         if rg is not None: rg = rg * 100
-        institutional = safe_float(yf_info.get('heldPercentInstitutions')) if yf_info else None
-        short_float = safe_float(yf_info.get('shortPercentOfFloat')) if yf_info else None
-        profit_margin = safe_float(yf_info.get('profitMargins')) if yf_info else None
-        earnings_growth = safe_float(yf_info.get('earningsGrowth')) if yf_info else None
-        avg_vol = safe_float(yf_info.get('averageVolume')) if yf_info else None
-        avg_vol10 = safe_float(yf_info.get('averageVolume10days')) if yf_info else None
-        latest_vol = safe_float(yf_info.get('volume')) if yf_info else None
-        short_ratio = safe_float(yf_info.get('shortRatio')) if yf_info else None
-        market_cap = safe_float(yf_info.get('marketCap')) if yf_info else None
-
-        institutional_pct = institutional * 100 if institutional is not None else None
-        short_float_pct = short_float * 100 if short_float is not None else None
-        profit_margin_pct = profit_margin * 100 if profit_margin is not None else None
-        earnings_growth_pct = earnings_growth * 100 if earnings_growth is not None else None
-
-        chip_summary_parts = []
-        if institutional_pct is not None: chip_summary_parts.append(f'機構持股 {institutional_pct:.1f}%')
-        if short_float_pct is not None: chip_summary_parts.append(f'空單/流通股 {short_float_pct:.1f}%')
-        if avg_vol is not None: chip_summary_parts.append(f'三月均量 {avg_vol/1_000_000:.1f}M')
-        chips_summary = '；'.join(chip_summary_parts) if chip_summary_parts else '美股籌碼資料不足，暫以流動性與空單壓力評估'
-
         return {
             'single_month_revenue': None, 'single_month_mom': None, 'single_month_yoy': rg,
             'eps_latest_quarter': None, 'eps_ttm': teps,
@@ -762,8 +1538,7 @@ def get_tw_chip_data(ticker, days=10):
     try:
         end_date = datetime.now().strftime('%Y-%m-%d')
         start_date = (datetime.now() - pd.Timedelta(days=45)).strftime('%Y-%m-%d')
-        df = data_sources.fetch_finmind_institutional_investors(
-            dl,
+        df = dl.taiwan_stock_institutional_investors(
             stock_id=stock_id,
             start_date=start_date,
             end_date=end_date
@@ -811,8 +1586,7 @@ def get_tw_chip_data(ticker, days=10):
             result['source'].append('FinMind-Chips')
 
     except Exception as e:
-        result['chips_summary'] = f'FinMind 籌碼讀取失敗，已略過本次籌碼資料'
-        log(f"[FinMind-WARN] {stock_id}: {e}")
+        result['chips_summary'] = f'FinMind 籌碼讀取失敗: {e}'
 
     return result
 
@@ -820,7 +1594,6 @@ def merge_finmind_chip_into_snapshot(fin_data, chip_data):
     if not chip_data: return fin_data
     merged = dict(fin_data)
     
-    # 🌟 關鍵修復：強制讓系統把 FinMind 的狀態文字印出來
     if 'chips_summary' in chip_data:
         merged['chips_summary'] = chip_data['chips_summary']
 
@@ -844,193 +1617,37 @@ def merge_finmind_chip_into_snapshot(fin_data, chip_data):
 # ==========================================
 # Stock pools and technical filters
 # ==========================================
-def _load_cached_us_pool():
-    try:
-        if not os.path.exists(US_POOL_CACHE_PATH): return None
-        with open(US_POOL_CACHE_PATH, 'r', encoding='utf-8') as f: payload = json.load(f)
-        age_hours = (time.time() - payload.get('created_at', 0)) / 3600
-        if age_hours <= US_POOL_CACHE_TTL_HOURS and payload.get('tickers'):
-            log(f"[US-POOL] 使用快取股票池 {len(payload['tickers'])} 檔，快取年齡 {age_hours:.1f}h")
-            return payload['tickers']
-    except Exception as e:
-        log(f"[US-POOL-WARN] 讀取快取失敗: {e}")
-    return None
-
-def _save_cached_us_pool(tickers):
-    try:
-        with open(US_POOL_CACHE_PATH, 'w', encoding='utf-8') as f:
-            json.dump({'created_at': time.time(), 'tickers': tickers}, f, indent=2)
-    except Exception as e:
-        log(f"[US-POOL-WARN] 寫入快取失敗: {e}")
-
-def _parse_market_cap(value):
-    if value is None: return 0
-    text = str(value).replace('$', '').replace(',', '').strip()
-    if not text or text in ('N/A', 'nan', '--'): return 0
-    multiplier = 1
-    suffix = text[-1].upper()
-    if suffix == 'T': multiplier = 1_000_000_000_000; text = text[:-1]
-    elif suffix == 'B': multiplier = 1_000_000_000; text = text[:-1]
-    elif suffix == 'M': multiplier = 1_000_000; text = text[:-1]
-    return safe_float(text, 0) * multiplier
-
-def _normalize_us_symbol(symbol):
-    s = str(symbol).strip().upper()
-    if not s or '^' in s or '$' in s: return None
-    s = s.replace('/', '-')
-    if len(s) > 8 or any(x in s for x in ['.W', '-WT', '-WS', '-U', '-R']): return None
-    return s
-
-def get_nasdaq_screener_symbols(limit=US_POOL_MAX_CANDIDATES):
-    headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-        'Accept': 'application/json,text/plain,*/*',
-        'Origin': 'https://www.nasdaq.com',
-        'Referer': 'https://www.nasdaq.com/market-activity/stocks/screener',
-    }
-    symbols = []
-    for exchange in ['nasdaq', 'nyse', 'amex']:
-        try:
-            url = f'https://api.nasdaq.com/api/screener/stocks?tableonly=true&limit=5000&exchange={exchange}'
-            data = data_sources.get_json(
-                url,
-                headers=headers,
-                namespace='nasdaq_screener',
-                cache_key=exchange,
-                ttl_hours=24,
-            )
-            rows = data.get('data', {}).get('table', {}).get('rows', [])
-            rows.sort(key=lambda row: _parse_market_cap(row.get('marketCap')), reverse=True)
-            for row in rows:
-                symbol = _normalize_us_symbol(row.get('symbol'))
-                if symbol: symbols.append(symbol)
-                if len(symbols) >= limit: break
-        except Exception as e:
-            log(f"[US-POOL-WARN] Nasdaq screener {exchange} failed: {e}")
-        if len(symbols) >= limit: break
-    return list(dict.fromkeys(symbols))[:limit]
-
-def passes_us_liquidity_and_fundamental_filter(ticker, min_avg_volume=US_MIN_AVG_VOLUME):
-    try:
-        df = data_sources.download_yfinance(ticker, period='3mo', auto_adjust=True)
-        if df.empty or len(df) < 25: return False
-        if isinstance(df.columns, pd.MultiIndex): df.columns = df.columns.droplevel(1)
-        avg5 = float(df['Volume'].tail(5).mean())
-        avg20 = float(df['Volume'].tail(20).mean())
-        if avg5 < min_avg_volume or avg20 < min_avg_volume:
-            return False
-
-        info = data_sources.get_yahoo_info(ticker)
-        quote_type = str(info.get('quoteType', '')).upper()
-        if quote_type and quote_type not in ('EQUITY', 'ETF'):
-            return False
-        if quote_type == 'ETF':
-            return avg20 >= min_avg_volume * 2
-
-        market_cap = safe_float(info.get('marketCap'), 0) or 0
-        eps = safe_float(info.get('trailingEps')) or safe_float(info.get('forwardEps'))
-        revenue_growth = safe_float(info.get('revenueGrowth'))
-        earnings_growth = safe_float(info.get('earningsGrowth'))
-        profit_margin = safe_float(info.get('profitMargins'))
-
-        if market_cap < 1_000_000_000: return False
-        profitable = eps is not None and eps > 0
-        quality = (
-            (revenue_growth is not None and revenue_growth > 0.03) or
-            (earnings_growth is not None and earnings_growth > 0) or
-            (profit_margin is not None and profit_margin > 0.05)
-        )
-        return profitable and quality
-    except Exception:
-        return False
-
 def get_us_stock_pool():
-    configured = configured_scan_universe('US')
-    if configured:
-        log(f"[US-POOL] 使用 SCAN_UNIVERSE_US 設定 {len(configured)} 檔")
-        return configured
-
-    sqlite_cached = data_sources.cache.get('stock_pool', 'US')
-    if sqlite_cached:
-        log(f"[US-POOL] 使用 SQLite 快取股票池 {len(sqlite_cached)} 檔")
-        return sqlite_cached
-
-    cached = _load_cached_us_pool()
-    if cached:
-        data_sources.cache.set('stock_pool', 'US', cached, US_POOL_CACHE_TTL_HOURS)
-        return cached
-
     try:
         headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'}
-        html = data_sources.get_text(
-            'https://en.wikipedia.org/wiki/List_of_S%26P_500_companies',
-            headers=headers,
-            namespace='wikipedia',
-            cache_key='sp500_components',
-            ttl_hours=24,
-        )
-        table = pd.read_html(StringIO(html))
-        sp500 = [_normalize_us_symbol(s) for s in table[0]['Symbol'].tolist()]
-        sp500 = [s for s in sp500 if s]
+        response = requests.get('https://en.wikipedia.org/wiki/List_of_S%26P_500_companies', headers=headers, timeout=15)
+        
+        table = pd.read_html(StringIO(response.text))
+        return table[0]['Symbol'].tolist()
+        
     except Exception as e:
         log_exception("[US-POOL-ERROR]", e)
-        sp500 = ['AAPL', 'MSFT', 'NVDA', 'TSLA', 'AMZN', 'GOOGL', 'META', 'AMD', 'BRK-B', 'JPM']
-
-    candidates = list(dict.fromkeys(sp500 + get_nasdaq_screener_symbols()))
-    candidates = candidates[:US_POOL_MAX_CANDIDATES]
-    log(f"[US-POOL] 候選 {len(candidates)} 檔，套用 5/20日均量>{US_MIN_AVG_VOLUME/1_000_000:.1f}M + 基本面初篩...")
-    filtered = []
-    for idx, ticker in enumerate(candidates, start=1):
-        if passes_us_liquidity_and_fundamental_filter(ticker):
-            filtered.append(ticker)
-        if idx % 25 == 0:
-            log(f"[US-POOL] 已檢查 {idx}/{len(candidates)}，通過 {len(filtered)} 檔")
-        if len(filtered) >= US_POOL_MAX_RESULTS:
-            break
-
-    if not filtered:
-        filtered = ['AAPL', 'MSFT', 'NVDA', 'TSLA', 'AMZN', 'GOOGL', 'META', 'AMD', 'BRK-B', 'JPM']
-    data_sources.cache.set('stock_pool', 'US', filtered, US_POOL_CACHE_TTL_HOURS)
-    _save_cached_us_pool(filtered)
-    return filtered
+        return ['AAPL', 'MSFT', 'NVDA', 'TSLA', 'AMZN', 'GOOGL', 'META', 'AMD', 'BRK-B', 'JPM']
 
 def get_tw_stock_pool(mode='offensive'):
-    configured = configured_scan_universe('TW')
-    if configured:
-        log(f"[TW-POOL] 使用 SCAN_UNIVERSE_TW 設定 {len(configured)} 檔")
-        return configured
-
-    sqlite_key = f"TW:{mode}"
-    sqlite_cached = data_sources.cache.get('stock_pool', sqlite_key)
-    if sqlite_cached:
-        log(f"[TW-POOL] 使用 SQLite 快取股票池 {len(sqlite_cached)} 檔")
-        return sqlite_cached
-
     tickers = []
     if mode == 'defensive': tickers.extend(get_defensive_etf_pool('TW'))
     for m in [2, 4]:
         try:
-            html = data_sources.get_text(
-                f'https://isin.twse.com.tw/isin/C_public.jsp?strMode={m}',
-                namespace='twse_isin',
-                cache_key=f'mode_{m}',
-                ttl_hours=24,
-            )
-            df = pd.read_html(StringIO(html))[0]
+            res = requests.get(f'https://isin.twse.com.tw/isin/C_public.jsp?strMode={m}', timeout=15)
+            df = pd.read_html(StringIO(res.text))[0]
             df.columns = df.iloc[0]
             valid_codes = df.iloc[1:][df.iloc[1:]['CFICode'] == 'ESVUFR']['有價證券代號及名稱'].str.extract(r'^([0-9]{4})\b')[0].dropna()
             tickers.extend((valid_codes + ('.TW' if m == 2 else '.TWO')).tolist())
         except Exception: pass
-    unique_tickers = list(set(tickers))
-    data_sources.cache.set('stock_pool', sqlite_key, unique_tickers, 24)
-    return unique_tickers
+    return list(set(tickers))
 
 def download_stock_df(ticker):
     ticker = normalize_ticker(ticker)
-    df = data_sources.download_yfinance(ticker, period='5y', auto_adjust=True)
+    df = yf.download(ticker, period='5y', progress=False, auto_adjust=True)
     if df.empty and ticker.endswith('.TW'):
         alt = ticker.replace('.TW', '.TWO')
-        df = data_sources.download_yfinance(alt, period='5y', auto_adjust=True)
+        df = yf.download(alt, period='5y', progress=False, auto_adjust=True)
         if not df.empty: ticker = alt
     if isinstance(df.columns, pd.MultiIndex): df.columns = df.columns.droplevel(1)
     return ticker, df
@@ -1107,10 +1724,18 @@ def compute_indicators(df):
 
     # Bias ratio.
     for ma in [5, 20, 60, 240]:
-        df[f'BIAS{ma}'] = np.where(df[f'MA{ma}'] != 0, (df['Close'] - df[f'MA{ma}']) / df[f'MA{ma}'] * 100, np.nan)
-    df['volume_avg20'] = df['Volume'].rolling(20, min_periods=10).mean()
-    df = add_cta_features(df)
-    df = add_pattern_features(df)
+        df[f'BIAS{ma}'] = np.where(
+            df[f'MA{ma}'] != 0,
+            (df['Close'] - df[f'MA{ma}']) / df[f'MA{ma}'] * 100,
+            np.nan
+        )
+
+    # ATR (Average True Range)
+    try:
+        df['ATR'] = ta.volatility.average_true_range(df['High'], df['Low'], df['Close'], window=14)
+    except Exception:
+        df['ATR'] = (df['High'] - df['Low']).rolling(14).mean()
+
     return df
 
 def evaluate_technical(df, market_mode='offensive'):
@@ -1132,14 +1757,6 @@ def evaluate_technical(df, market_mode='offensive'):
     c5 = bool(latest['Volume'] > 500_000) 
     c6 = bool(latest['Close'] > latest['MA5'] > latest['MA20'] > latest['MA60']) if not pd.isna(latest['MA60']) else False
     c7 = bool(latest['Close'] > latest['MA240']) if not pd.isna(latest['MA240']) else False
-    c_engulfing_5d = bool(latest.get('engulfing_5d', 0))
-    c_box_breakout = bool(latest.get('close_box_breakout', 0))
-    c_bb_squeeze_breakout = bool(latest.get('bb_squeeze_breakout', 0))
-    c_bb_momentum_breakout = bool(latest.get('bb_momentum_breakout', 0))
-    triangle_score = safe_float(latest.get('triangle_contraction_score'), 0.0) or 0.0
-    inverse_hs_score = safe_float(latest.get('inverse_head_shoulders_score'), 0.0) or 0.0
-    c_triangle = triangle_score >= 0.65
-    c_inverse_hs = inverse_hs_score >= 0.65
 
     weekly = compute_indicators(df[['Open', 'High', 'Low', 'Close', 'Volume']].resample('W-FRI').agg({'Open':'first', 'High':'max', 'Low':'min', 'Close':'last', 'Volume':'sum'}).dropna())
     monthly = compute_indicators(df[['Open', 'High', 'Low', 'Close', 'Volume']].resample('ME').agg({'Open':'first', 'High':'max', 'Low':'min', 'Close':'last', 'Volume':'sum'}).dropna())
@@ -1155,12 +1772,6 @@ def evaluate_technical(df, market_mode='offensive'):
     score = 0
     if market_mode == 'offensive':
         score = sum([16*c1, 10*c2, 10*c3, 12*c4, 8*c5, 8*c6, 6*c7, 8*wk_up, 5*mo_up, 9*wk_macd_pos, 6*mo_macd_pos])
-        if c_box_breakout: score += 15
-        if c_engulfing_5d: score += 10
-        if c_bb_squeeze_breakout: score += 12
-        if c_bb_momentum_breakout: score += 8
-        if c_triangle: score += 5
-        if c_inverse_hs: score += 5
         if bias20 is not None:
             if 0 <= bias20 <= 8: score += 6
             elif 8 < bias20 <= 15: score += 3
@@ -1187,7 +1798,6 @@ def evaluate_technical(df, market_mode='offensive'):
     technical_score = max(0, min(score, 100))
     vcp_score = safe_float(latest.get('vcp_score'), 0.0) or 0.0
     bb_breakout = bool(latest.get('bb_breakout', 0))
-    bb_score = safe_float(latest.get('bb_score'), 0.0) or 0.0
     bb_width_pctile = safe_float(latest.get('bb_width_pctile'))
     pattern_tag = '多頭排列'
     if bb_breakout:
@@ -1225,74 +1835,43 @@ def evaluate_technical(df, market_mode='offensive'):
             'ma5': safe_float(latest['MA5']), 'ma20': safe_float(latest['MA20']), 'opt_ma': safe_float(opt_ma_val),
             'ma50': safe_float(latest['MA50']), 'ma240': safe_float(latest['MA240']),
             'bias5': safe_float(latest.get('BIAS5')), 'bias20': bias20, 'bias60': bias60, 'bias240': safe_float(latest.get('BIAS240')),
-            'vcp_score': vcp_score, 'vcp_pivot': safe_float(latest.get('vcp_pivot')), 'bb_width_pctile': bb_width_pctile,
-            'bb_width': safe_float(latest.get('BBWidth')), 'bb_breakout': bb_breakout, 'bb_score': bb_score,
-            'box_width': safe_float(latest.get('Box_Width')), 'close_box_high': safe_float(latest.get('Close_Max_20_Prior')),
-            'cta_score': safe_float(latest.get('cta_score'), 0.0), 'triangle_score': triangle_score,
-            'inverse_head_shoulders_score': inverse_hs_score
+            'vcp_score': vcp_score, 'vcp_pivot': safe_float(latest.get('vcp_pivot')), 'bb_width_pctile': bb_width_pctile, 'bb_breakout': bb_breakout,
+            'atr': safe_float(latest.get('ATR'))
         }
     }
 
 def calc_fundamental_score(f, is_us=False):
-    return shared_calc_fundamental_score(f, is_us)
+    score = 0
+    syoy = f.get('single_month_yoy')
+    smom = f.get('single_month_mom')
+    eq = f.get('eps_latest_quarter')
+    ettm = f.get('eps_ttm')
+
+    if syoy is not None: score += 25 if syoy >= 30 else (18 if syoy >= 15 else (10 if syoy >= 5 else (-10 if syoy < 0 else 0)))
+    if smom is not None: score += 16 if smom >= 20 else (10 if smom >= 5 else (5 if smom >= 0 else -6))
+    if eq is not None: score += 18 if eq >= 20 else (14 if eq >= 10 else (8 if eq > 0 else -8))
+    if ettm is not None: score += 20 if ettm >= 40 else (14 if ettm >= 20 else (8 if ettm > 0 else -8))
+    if is_us and score < 30 and (syoy is not None or ettm is not None): score += 20 
+    return max(0, min(score, 100))
 
 def calc_chip_score(f, is_us=False):
-    return shared_calc_chip_score(f, is_us)
+    if is_us: return 0
+    score = 0
+    t2, t5, t10, f5 = f.get('total_2d'), f.get('total_5d'), f.get('total_10d'), f.get('foreign_5d')
+    if t2 is not None: score += 12 if t2 > 0 else -6
+    if t5 is not None: score += 24 if t5 > 5000 else (18 if t5 > 1000 else (10 if t5 > 0 else (-16 if t5 < -5000 else -8)))
+    if t10 is not None: score += 14 if t10 > 0 else -8
+    if f5 is not None: score += 10 if f5 > 0 else -5
+    return max(0, min(score, 100))
 
-def _scale_unit_score(value, default=0.0):
-    score = safe_float(value, default)
-    if score is None:
-        score = default
-    score = float(score)
-    if score <= 1.5:
-        score *= 100.0
-    return max(0.0, min(score, 100.0))
-
-def technical_model_scores(tech_pack):
-    metrics = (tech_pack or {}).get('metrics', {})
-    latest = (tech_pack or {}).get('latest')
-    bb_score = metrics.get('bb_score')
-    if bb_score is None and latest is not None:
-        bb_score = latest.get('bb_score', latest.get('bb_breakout', 0.0))
-
-    cta_score = metrics.get('cta_score', 0.0)
-    triangle_score = metrics.get('triangle_score', 0.0)
-    inverse_hs_score = metrics.get('inverse_head_shoulders_score', 0.0)
-    pattern_score = max(_scale_unit_score(triangle_score), _scale_unit_score(inverse_hs_score))
-
-    return {
-        'minervini': _scale_unit_score((tech_pack or {}).get('technical_score', 0.0), 0.0),
-        'vcp': _scale_unit_score(metrics.get('vcp_score', 0.0), 0.0),
-        'bb': _scale_unit_score(bb_score, 0.0),
-        'cta': _scale_unit_score(cta_score, 0.0),
-        'pattern': pattern_score,
-    }
-
-def candidate_model_average(tech_pack):
-    scores = technical_model_scores(tech_pack)
-    return sum(scores.values()) / max(1, len(scores))
-
-def final_total_score(t, f, c, is_us=False, tech_pack=None):
-    model_scores = technical_model_scores(tech_pack)
+def final_total_score(t, f, c, is_us=False):
     tech_w = max(0.0, float(SYS_PARAMS.get('tech_weight', WEIGHT_TECH)))
     fund_w = max(0.0, float(SYS_PARAMS.get('fund_weight', WEIGHT_FUND)))
-    chip_w = max(0.0, float(SYS_PARAMS.get('chip_weight', WEIGHT_CHIP)))
-    vcp_w = max(0.0, float(SYS_PARAMS.get('vcp_weight', 0.15)))
-    bb_w = max(0.0, float(SYS_PARAMS.get('bb_weight', 0.10)))
-    cta_w = max(0.0, float(SYS_PARAMS.get('cta_weight', 0.08)))
-    pattern_w = max(0.0, float(SYS_PARAMS.get('pattern_weight', 0.07)))
-    total_w = tech_w + fund_w + chip_w + vcp_w + bb_w + cta_w + pattern_w
+    chip_w = 0.0 if is_us else max(0.0, float(SYS_PARAMS.get('chip_weight', WEIGHT_CHIP)))
+    total_w = tech_w + fund_w + chip_w
     if total_w <= 0:
-        return t * WEIGHT_TECH + f * WEIGHT_FUND + c * WEIGHT_CHIP
-    return (
-        t * tech_w +
-        f * fund_w +
-        c * chip_w +
-        model_scores['vcp'] * vcp_w +
-        model_scores['bb'] * bb_w +
-        model_scores['cta'] * cta_w +
-        model_scores['pattern'] * pattern_w
-    ) / total_w
+        return t * (0.70 if is_us else WEIGHT_TECH) + f * (0.30 if is_us else WEIGHT_FUND) + (0 if is_us else c * WEIGHT_CHIP)
+    return (t * tech_w + f * fund_w + c * chip_w) / total_w
 
 # ==========================================
 # Report and card generation
@@ -1346,77 +1925,71 @@ def save_exquisite_plot(df, weekly, monthly, ticker, ranking_info):
     plt.close(fig)
     return file_path
 
-def create_strategy_card_image(ticker, close_price, ma5, ma20, high52w, hard_stop, output_path):
-    entry_a_low, entry_a_high = ma20 * 0.98, ma20 * 1.02
-    stop_a = entry_a_low * (1 - hard_stop)
-    entry_b_low, entry_b_high = (ma5 + ma20) / 2, ma5 * 1.01
-    stop_b = entry_b_low * (1 - hard_stop)
-    entry_c_low, entry_c_high = high52w * 0.98, high52w * 1.02
-    stop_c = entry_c_low * (1 - hard_stop)
+def generate_advanced_trading_plan(ticker, close, atr, total_score, rsi, bias20, volume, avg_vol, capital=500000):
+    """生成高階資金控管與分批進場計畫"""
+    grade = 'A' if total_score >= 80 else ('B' if total_score >= 65 else 'C')
+    regime = '趨勢多頭' if total_score >= 65 else '震盪/偏空'
+    win_rate = min(0.85, 0.40 + (total_score / 200))
     
-    target_1 = high52w if high52w > close_price else close_price * 1.15
-    target_2 = target_1 * 1.15
-    def calc_rr(entry, stop, target): return (target - entry) / (entry - stop) if entry > stop else 0
+    warnings_list = []
+    if rsi is not None and rsi > 70: warnings_list.append('RSI_HOT')
+    if bias20 is not None and bias20 > 15: warnings_list.append('BETA_HIGH')
+    if volume is not None and avg_vol is not None and volume < avg_vol * 0.7: warnings_list.append('VOL_SHRINK')
+    warnings_str = "['" + "', '".join(warnings_list) + "']" if warnings_list else "['SAFE']"
+    deduction = len(warnings_list) * 3.5
 
-    html_content = f"""
-    <!DOCTYPE html>
-    <html>
-    <head><meta charset="UTF-8"><style>
-        body {{ font-family: sans-serif; padding: 20px; }}
-        .card-container {{ width: 380px; background: white; border-radius: 16px; padding: 20px; border: 1px solid #e5e7eb; }}
-        .header {{ border-bottom: 1px solid #e5e7eb; padding-bottom: 12px; margin-bottom: 16px; }}
-        .title {{ font-size: 20px; font-weight: bold; margin: 0; }}
-        .price-info {{ font-size: 16px; color: #dc2626; font-weight: 600; margin: 5px 0 0 0; }}
-        .box {{ border-radius: 12px; padding: 12px; margin-bottom: 12px; border-left: 6px solid; }}
-        .box-a {{ background: #fffbeb; border-color: #facc15; }}
-        .box-a .tag {{ color: #ca8a04; font-weight: bold; font-size: 16px; }}
-        .box-b {{ background: #f0fdf4; border-color: #4ade80; }}
-        .box-b .tag {{ color: #16a34a; font-weight: bold; font-size: 16px; }}
-        .box-c {{ background: #eff6ff; border-color: #60a5fa; }}
-        .box-c .tag {{ color: #2563eb; font-weight: bold; font-size: 16px; }}
-        .price-range {{ font-size: 18px; font-weight: bold; margin-left: 8px; }}
-        .warning {{ font-size: 13px; color: #dc2626; font-weight: bold; margin-top: 6px; }}
-        .target-box {{ border-radius: 10px; padding: 12px; margin-bottom: 10px; }}
-        .t1 {{ background: #dcfce7; color: #166534; }}
-        .t2 {{ background: #f3e8ff; color: #6b21a8; }}
-        .target-price {{ font-size: 22px; font-weight: bold; margin-left: 8px; }}
-    </style></head>
-    <body>
-        <div class="card-container" id="capture-area">
-            <div class="header">
-                <h2 class="title">📊 {ticker} 操作計畫</h2>
-                <p class="price-info">最新收盤: {close_price:.2f}</p>
-            </div>
-            <div style="font-weight: bold; margin-bottom: 8px;">📍 進場區</div>
-            <div class="box box-a">
-                <div><span class="tag">A 低接</span><span class="price-range">{entry_a_low:.1f} - {entry_a_high:.1f}</span></div>
-                <div class="warning">❗️ 停損 {stop_a:.1f} (-{hard_stop*100:.1f}%) | 風報 1:{calc_rr(entry_a_high, stop_a, target_1):.1f}</div>
-            </div>
-            <div class="box box-b">
-                <div><span class="tag">B 回穩</span><span class="price-range">{entry_b_low:.1f} - {entry_b_high:.1f}</span></div>
-                <div class="warning">❗️ 停損 {stop_b:.1f} (-{hard_stop*100:.1f}%) | 風報 1:{calc_rr(entry_b_high, stop_b, target_1):.1f}</div>
-            </div>
-            <div class="box box-c">
-                <div><span class="tag">C 突破</span><span class="price-range">{entry_c_low:.1f} - {entry_c_high:.1f}</span></div>
-                <div class="warning">❗️ 停損 {stop_c:.1f} (-{hard_stop*100:.1f}%) | 風報 1:{calc_rr(entry_c_high, stop_c, target_2):.1f}</div>
-            </div>
-            <div style="font-weight: bold; margin: 20px 0 10px 0;">🎯 壓力區 (非固定止盈)</div>
-            <div class="target-box t1"><strong>壓力 1</strong><span class="target-price">{target_1:.1f}</span></div>
-            <div class="target-box t2"><strong>壓力 2</strong><span class="target-price">{target_2:.1f}</span></div>
-        </div>
-    </body>
-    </html>
-    """
-    try:
-        with sync_playwright() as p:
-            browser = p.chromium.launch(headless=True)
-            page = browser.new_page()
-            page.set_content(html_content)
-            element = page.locator("#capture-area")
-            element.screenshot(path=output_path, omit_background=True)
-            browser.close()
-            return output_path
-    except Exception as e: log_exception('[PLOT-ERROR]', e); return None
+    pos_pct = 0.20 if grade == 'A' else (0.125 if grade == 'B' else 0.05)
+    pos_amt = capital * pos_pct
+    action = 'ENTER (分批建倉)' if grade in ['A', 'B'] else 'WATCH (觀望)'
+    
+    if atr is None or math.isnan(atr) or atr == 0:
+        atr = close * 0.03
+        
+    p1 = close
+    p2 = close - (atr * 0.5)
+    p3 = close - (atr * 1.0)
+    
+    amt1 = pos_amt * 0.50
+    amt2 = pos_amt * 0.30
+    amt3 = pos_amt * 0.20
+    
+    avg_cost = (p1 * 0.5) + (p2 * 0.3) + (p3 * 0.2)
+    sl_price = avg_cost - (atr * 1.5)
+    sl_pct = ((sl_price - avg_cost) / avg_cost) * 100 if avg_cost else 0
+    tp1_price = avg_cost + (atr * 2.5)
+    tp1_pct = ((tp1_price - avg_cost) / avg_cost) * 100 if avg_cost else 0
+
+    plan_text = f"""```text
+==================================================
+   📊 {ticker} 評估結果
+==================================================
+總分        : {total_score:.0f}/100   ({grade})
+Regime      : {regime}
+勝率 p      : {win_rate:.3f}
+警示燈      : {warnings_str}
+扣分        : {deduction:.1f}%
+--------------------------------------------------
+建議倉位    : {pos_pct*100:.1f}%
+建議金額    : {pos_amt:,.0f} 元
+動作        : {action}
+==================================================
+   📍 {ticker} 進出計畫 (基於 ATR 動態波幅)
+==================================================
+現價        : {close:.2f}
+ATR(14)     : {atr:.2f}
+--------------------------------------------------
+📥 進場 (分 3 批)
+   第1批  價位  {p1:7.2f}    50%   金額  {amt1:8,.0f} 元
+   第2批  價位  {p2:7.2f}    30%   金額  {amt2:8,.0f} 元
+   第3批  價位  {p3:7.2f}    20%   金額  {amt3:8,.0f} 元
+   若三批全成交，平均成本 ≈ {avg_cost:.2f}
+--------------------------------------------------
+🛑 停損        : {sl_price:.2f}  ({sl_pct:+.1f}%)
+💰 停利第1段   : {tp1_price:.2f}  ({tp1_pct:+.1f}%) 賣一半鎖利
+💰 停利第2段   : 從持有期最高點回落 8% 即出場
+==================================================
+```"""
+    return plan_text
 
 def build_stock_report(ticker, tech_pack, fin_data, profile_info, rank=None):
     latest, c, m = tech_pack['latest'], tech_pack['conditions'], tech_pack['metrics']
@@ -1433,11 +2006,7 @@ def build_stock_report(ticker, tech_pack, fin_data, profile_info, rank=None):
     })
 
     close_val = latest["Close"]
-    opt_hard_stop = SYS_PARAMS.get('hard_stop', 0.08)
     opt_ma_val = safe_float(m.get('opt_ma')) or close_val
-
-    strategy_card_path = os.path.join(REPORT_DIR, f'{ticker}_strategy.png')
-    create_strategy_card_image(ticker, close_val, safe_float(m.get("ma5")) or close_val, opt_ma_val, safe_float(latest.get("High52W")) or (close_val * 1.1), opt_hard_stop, strategy_card_path)
 
     report = ''
     if rank is not None: report += f'🏆 **排名 #{rank}**\n'
@@ -1449,19 +2018,13 @@ def build_stock_report(ticker, tech_pack, fin_data, profile_info, rank=None):
     
     if is_us:
         report += f'💰 最新收盤：`{latest["Close"]:.2f}` _({m["latest_date"]})_\n'
-        report += f'🧮 總分：`{total_score:.1f}` | 技術：`{tech_score:.1f}` | 基本：`{fund_score:.1f}` | 籌碼：`{chip_score:.1f}`\n'
+        report += f'🧮 總分：`{total_score:.1f}` | 技術：`{tech_score:.1f}` | 基本：`{fund_score:.1f}`\n'
     else:
         report += f'💰 最新收盤：`{latest["Close"]:.2f}` _(資料日期: {m["latest_date"]})_\n'
         report += f'🧮 總分：`{total_score:.1f}` | 技術：`{tech_score:.1f}` | 基本：`{fund_score:.1f}` | 籌碼：`{chip_score:.1f}`\n'
         
     report += '------------------------\n'
     report += f'🏢 **產業:** {profile_info["industry"]}\n_{profile_info["profile"]}_\n'
-    all_tags = list(dict.fromkeys(list(tech_pack.get('strategy_tags', [])) + list(tech_pack.get('sector_tags', []))))
-    if all_tags:
-        report += f'🏷️ **策略標籤:** `{" / ".join(all_tags[:6])}`\n'
-    sector_info = tech_pack.get('sector_info') or {}
-    if sector_info:
-        report += f'🌐 **族群強度:** `{safe_num_str(sector_info.get("sector_strength_score"), 1)}` | 同族樣本 `{sector_info.get("count", 0)}` | 平均分 `{safe_num_str(sector_info.get("avg_score"), 1)}`\n'
     report += '------------------------\n'
 
     if is_etf:
@@ -1478,24 +2041,10 @@ def build_stock_report(ticker, tech_pack, fin_data, profile_info, rank=None):
         report += f'{"✅" if c["off_bottom"] else "❌"} 已脱離 52W 低點至少 30%\n'
         report += f'{"✅" if c["near_high"] else "❌"} 靠近 52W 高點 25% 內\n'
         report += f'{"✅" if c["momentum"] else "❌"} 日線動能：RSI>60 且 MACD>0\n'
-        if c.get('c_box_breakout'):
-            report += '🔥 **【進階型態】觸發無雜訊 20 日收盤箱型帶量突破**\n'
-        if c.get('c_engulfing_5d'):
-            report += '🔥 **【進階型態】出現強勢五日陣吞噬**\n'
-        if c.get('c_bb_squeeze_breakout'):
-            report += '🔥 **【布林型態】布林壓縮後帶量突破上軌**\n'
-        if c.get('c_bb_momentum_breakout'):
-            report += '🔥 **【布林動能】突破上軌且 RSI/MACD 同步轉強**\n'
-        if c.get('c_triangle_contraction'):
-            report += '📐 **【型態學】偵測到收斂三角雛形**\n'
-        if c.get('c_inverse_head_shoulders'):
-            report += '📐 **【型態學】偵測到頭肩底雛形**\n'
 
     report += '\n📈 **技術數據面板：**\n'
     report += f'🔹 RSI(日)：`{safe_num_str(m["rsi"], 1)}`\n'
     report += f'🔹 MACD Hist 日/週/月：`{safe_num_str(m["macd_osc_d"], 3)}` / `{safe_num_str(m["macd_osc_w"], 3)}` / `{safe_num_str(m["macd_osc_m"], 3)}`\n'
-    report += f'🔹 箱型寬度 / BB寬度：`{safe_pct_str((m.get("box_width") or 0) * 100 if m.get("box_width") is not None else None)}` / `{safe_pct_str((m.get("bb_width") or 0) * 100 if m.get("bb_width") is not None else None)}`\n'
-    report += f'🔹 VCP / CTA / 三角 / 頭肩底分數：`{safe_num_str(m.get("vcp_score"), 2)}` / `{safe_num_str(m.get("cta_score"), 2)}` / `{safe_num_str(m.get("triangle_score"), 2)}` / `{safe_num_str(m.get("inverse_head_shoulders_score"), 2)}`\n'
     report += f'🔹 5/20/60/240MA乖離率：`{safe_pct_str(m["bias5"])}` / `{safe_pct_str(m["bias20"])}` / `{safe_pct_str(m["bias60"])}` / `{safe_pct_str(m["bias240"])}`\n'
 
     if not is_etf:
@@ -1504,7 +2053,6 @@ def build_stock_report(ticker, tech_pack, fin_data, profile_info, rank=None):
             report += '💹 **基本面 (Yahoo Finance)：**\n'
             report += f'🔸 近四季 EPS (TTM)：`{safe_num_str(fin_data.get("eps_ttm"))}`\n'
             report += f'🔸 營收成長 (Y/Y)：`{safe_pct_str(fin_data.get("single_month_yoy"))}`\n'
-            report += f'🔸 獲利率 / 盈餘成長：`{safe_pct_str(fin_data.get("profit_margin_pct"))}` / `{safe_pct_str(fin_data.get("earnings_growth_pct"))}`\n'
         else:
             report += '💹 **基本面：**\n'
             report += f'🔸 最新一季 EPS：`{safe_num_str(fin_data.get("eps_latest_quarter"))}`\n🔸 近四季 EPS：`{safe_num_str(fin_data.get("eps_ttm"))}`\n'
@@ -1512,13 +2060,7 @@ def build_stock_report(ticker, tech_pack, fin_data, profile_info, rank=None):
 
     report += '------------------------\n'
     if is_us:
-        report += '🏦 **美股籌碼面：**\n'
-        report += f'🔸 籌碼摘要：`{fin_data.get("chips_summary", "N/A")}`\n'
-        report += f'🔸 機構持股 / 空單占流通股：`{safe_pct_str(fin_data.get("institutional_ownership_pct"))}` / `{safe_pct_str(fin_data.get("short_percent_float"))}`\n'
-        report += f'🔸 Short Ratio：`{safe_num_str(fin_data.get("short_ratio"), 2)}`\n'
-        report += f'🔸 成交量 最新/10日/3月均量：`{safe_num_str((fin_data.get("latest_volume") or 0) / 1_000_000, 1)}M` / `{safe_num_str((fin_data.get("avg_volume_10d") or 0) / 1_000_000, 1)}M` / `{safe_num_str((fin_data.get("avg_volume_3m") or 0) / 1_000_000, 1)}M`\n'
-        srcs = ', '.join(fin_data.get('sources', [])) if fin_data.get('sources') else 'N/A'
-        report += f'🔸 資料來源：`{srcs}`\n'
+        report += '🏦 **籌碼面：** 美股無台股三大法人結構，評分已自動調高技術面比重。\n'
     else:
         report += '🏦 **籌碼面：**\n'
         report += f'🔸 籌碼摘要：`{fin_data.get("chips_summary", "N/A")}`\n'
@@ -1546,8 +2088,25 @@ def build_stock_report(ticker, tech_pack, fin_data, profile_info, rank=None):
     if total_score >= 80: report += '🚀 **結論：結構極強，屬高優先級觀察名單。**'
     elif total_score >= 65: report += '🟡 **結論：結構偏強，可列入次高優先級。**'
     else: report += '⚪ **結論：有部分條件符合，尚未達到最強勢組。**'
+    report += '\n\n'
 
-    return report, img_path, strategy_card_path
+    # === 新增終端機風格戰術面板 ===
+    avg_vol = safe_float(tech_pack['df']['Volume'].rolling(20).mean().iloc[-1]) if len(tech_pack['df']) >= 20 else None
+    terminal_plan = generate_advanced_trading_plan(
+        ticker=ticker,
+        close=close_val,
+        atr=safe_float(m.get('atr')),
+        total_score=total_score,
+        rsi=safe_float(m.get('rsi')),
+        bias20=safe_float(m.get('bias20')),
+        volume=safe_float(m.get('volume')),
+        avg_vol=avg_vol,
+        capital=500000 # 💡 可以在這裡修改你的預設操盤本金
+    )
+    
+    report += terminal_plan
+
+    return report, img_path, None
 
 def create_scan_summary_image(ranked_list, output_path, region='TW'):
     if not ranked_list:
@@ -1852,7 +2411,7 @@ def analyze_stock(ticker, market_mode='offensive', silent=False):
         tech_pack = evaluate_technical(df, market_mode)
         
         is_us = is_us_ticker(ticker)
-        yf_info = data_sources.get_yahoo_info(ticker) if not TEST_MODE else {}
+        yf_info = yf.Ticker(ticker).info if not TEST_MODE else {}
         ticker_num = ticker.split('.')[0]
         
         profile_info = get_company_profile(ticker_num, ticker_full=ticker, yf_info=yf_info)
@@ -1919,21 +2478,13 @@ def scan_and_rank_market(chat_id=None, requested_by_user=False, market_mode='off
                 continue
 
             tech_pack = evaluate_technical(df, market_mode)
-            prescreen.append({
-                'ticker': tkr,
-                'df': df,
-                'tech_pack': tech_pack,
-                'model_average': candidate_model_average(tech_pack),
-            })
+            if tech_pack['technical_score'] >= 50:
+                prescreen.append({'ticker': tkr, 'df': df, 'tech_pack': tech_pack})
 
-        except Exception as e:
-            log_exception(f'[PRESCREEN-ERROR] {ticker}', e)
+        except Exception:
             continue
         
-    prescreen.sort(
-        key=lambda x: (x.get('model_average', 0.0), x['tech_pack']['technical_score']),
-        reverse=True,
-    )
+    prescreen.sort(key=lambda x: x['tech_pack']['technical_score'], reverse=True)
     prescreen = prescreen[:TECHNICAL_PRESCREEN_LIMIT]
 
     if requested_by_user:
@@ -1947,7 +2498,7 @@ def scan_and_rank_market(chat_id=None, requested_by_user=False, market_mode='off
         ticker = item['ticker']
         try:
             is_us = is_us_ticker(ticker)
-            yf_info = data_sources.get_yahoo_info(ticker)
+            yf_info = yf.Ticker(ticker).info
             ticker_num = ticker.split('.')[0]
             
             profile_info = get_company_profile(ticker_num, ticker_full=ticker, yf_info=yf_info)
@@ -1963,21 +2514,12 @@ def scan_and_rank_market(chat_id=None, requested_by_user=False, market_mode='off
             t_score = item['tech_pack']['technical_score']
             f_score = calc_fundamental_score(fin_data, is_us)
             c_score = calc_chip_score(fin_data, is_us)
-            model_scores = technical_model_scores(item['tech_pack'])
             ranked.append({
                 'ticker': ticker,
                 'tech_pack': item['tech_pack'],
                 'fin_data': fin_data,
                 'profile_info': profile_info,
-                'model_scores': model_scores,
-                'model_average': (
-                    model_scores['minervini'] + model_scores['vcp'] + model_scores['bb'] +
-                    model_scores['cta'] + model_scores['pattern'] + f_score + c_score
-                ) / 7.0,
-                'technical_score': t_score,
-                'fundamental_score': f_score,
-                'chip_score': c_score,
-                'total_score': final_total_score(t_score, f_score, c_score, is_us, item['tech_pack'])
+                'total_score': final_total_score(t_score, f_score, c_score, is_us)
             })
 
         except Exception as e:
@@ -1985,49 +2527,16 @@ def scan_and_rank_market(chat_id=None, requested_by_user=False, market_mode='off
             continue
 
     ranked.sort(key=lambda x: x['total_score'], reverse=True)
-    ranked = annotate_sector_strength(ranked)
-    return ranked
-
-def top_ranked_by_model(ranked, model_key, limit=FINAL_TOP_N, require_signal=False):
-    def model_value(item):
-        if model_key == 'sector':
-            return safe_float((item.get('sector_info') or {}).get('sector_strength_score'), 0.0) or 0.0
-        return safe_float((item.get('model_scores') or {}).get(model_key), 0.0) or 0.0
-
-    filtered = []
-    for item in ranked:
-        value = model_value(item)
-        if require_signal and value <= 0:
-            continue
-        filtered.append(item)
-    filtered.sort(key=lambda item: (model_value(item), item.get('total_score', 0.0)), reverse=True)
-    return filtered[:limit]
-
-def format_ranked_summary(title, ranked, score_label='總分', model_key=None):
-    lines = [title]
-    if not ranked:
-        lines.append('本次沒有可排序標的。')
-        return '\n'.join(lines)
-    for i, item in enumerate(ranked[:FINAL_TOP_N], start=1):
-        tags = ' / '.join((item.get('tech_pack', {}).get('strategy_tags') or [])[:2] + (item.get('sector_tags') or [])[:2])
-        tag_text = f' | `{tags}`' if tags else ''
-        if model_key == 'sector':
-            score = safe_float((item.get('sector_info') or {}).get('sector_strength_score'), 0.0) or 0.0
-        elif model_key:
-            score = safe_float((item.get('model_scores') or {}).get(model_key), 0.0) or 0.0
-        else:
-            score = safe_float(item.get('total_score'), 0.0) or 0.0
-        lines.append(f'{i}. `{item["ticker"]}` | {score_label} `{score:.1f}` | 加權 `{item.get("total_score", 0.0):.1f}` | 平均 `{item.get("model_average", 0.0):.1f}`{tag_text}')
-    return '\n'.join(lines)
+    return ranked[:FINAL_TOP_N]
 
 # ==========================================
 # Main jobs and scheduler
 # ==========================================
 def run_market_scan_job(chat_id, requested_by_user=False, region='TW'):
     market_mode, macro_score = check_market_status(region)
-    mode_msg = "🟢 **多方輪動：啟動 [攻擊型飆股引擎]**" if market_mode == 'offensive' else "🔴 **崩盤風險：啟動 [RS防守避險引擎 + ETF推薦]**"
+    mode_msg = "🟢 **波段多方輪動：啟動 [攻擊型飆股引擎]**" if market_mode == 'offensive' else "🔴 **波段風險升高：啟動 [RS防守避險引擎 + ETF推薦]**"
     
-    safe_send_message(chat_id, f'🔍 **{region} 市場量化雷達啟動中...**\n{mode_msg}', parse_mode='Markdown')
+    safe_send_message(chat_id, f'🔍 **{region} 市場波段雷達啟動中...**\n{mode_msg}', parse_mode='Markdown')
     macro_img_path = os.path.join(REPORT_DIR, f'{region}_macro_dashboard.png')
     dashboard_generated = create_macro_dashboard_image(market_mode, macro_score, macro_img_path, region)
     if dashboard_generated and os.path.exists(dashboard_generated):
@@ -2035,8 +2544,7 @@ def run_market_scan_job(chat_id, requested_by_user=False, region='TW'):
         time.sleep(2)
     
     if region == 'TW': update_my_tw_coverage(chat_id)
-    all_ranked = scan_and_rank_market(chat_id, requested_by_user, market_mode, region)
-    top_ranked = all_ranked[:FINAL_TOP_N]
+    top_ranked = scan_and_rank_market(chat_id, requested_by_user, market_mode, region)
     
     if not top_ranked:
         safe_send_message(chat_id, '☕ **掃描完畢**\n本次無達標股票。')
@@ -2057,29 +2565,16 @@ def run_market_scan_job(chat_id, requested_by_user=False, region='TW'):
     except Exception as e:
         log_exception('[DASHBOARD-ERROR]', e)
         
-    safe_send_message(
-        chat_id,
-        format_ranked_summary(f'🏆 **{region} 加權平均 Top 10 觀察清單**', top_ranked),
-        parse_mode='Markdown',
-    )
+    summary = [f'🏆 **{region} 今日 Top 10 觀察清單**']
+    for i, item in enumerate(top_ranked, start=1):
+        icon = '🛡️' if ('00' in item["ticker"] or item["ticker"] in get_defensive_etf_pool('US')) else '🚀'
+        summary.append(f'{i}. {icon} `{item["ticker"]}` | 總分 `{item["total_score"]:.1f}`')
+    safe_send_message(chat_id, '\n'.join(summary), parse_mode='Markdown')
     time.sleep(2)
-
-    if region == 'TW':
-        tw_sections = [
-            ('🧬 **TW VCP 形態 Top 10**', top_ranked_by_model(all_ranked, 'vcp'), 'VCP', 'vcp'),
-            ('🔥 **TW 布林突破 Top 10**', top_ranked_by_model(all_ranked, 'bb'), '布林', 'bb'),
-            ('🌐 **TW 族群連動 Top 10**', top_ranked_by_model(all_ranked, 'sector'), '族群', 'sector'),
-        ]
-        for title, items, label, key in tw_sections:
-            safe_send_message(chat_id, format_ranked_summary(title, items, label, key), parse_mode='Markdown')
-            time.sleep(1)
     
     for i, item in enumerate(top_ranked, start=1):
         try:
-            tech_pack = dict(item['tech_pack'])
-            tech_pack['sector_info'] = item.get('sector_info')
-            tech_pack['sector_tags'] = item.get('sector_tags', [])
-            report, img_path, strategy_img_path = build_stock_report(item['ticker'], tech_pack, item['fin_data'], item['profile_info'], rank=i)
+            report, img_path, strategy_img_path = build_stock_report(item['ticker'], item['tech_pack'], item['fin_data'], item['profile_info'], rank=i)
             if img_path and os.path.exists(img_path): safe_send_photo(chat_id, img_path); time.sleep(1)
             if strategy_img_path and os.path.exists(strategy_img_path): safe_send_photo(chat_id, strategy_img_path); time.sleep(1)
             safe_send_message(chat_id, report, parse_mode='Markdown')
@@ -2119,13 +2614,12 @@ if bot:
 
     @bot.message_handler(func=lambda message: not message.text.startswith('/'))
     def handle_stock(message):
-        raw_text = (message.text or '').strip().upper().replace('多', '').replace('空', '')
-
-        # Quietly ignore normal chat/noise. Only accept TW 4-digit symbols or
-        # compact US tickers such as AAPL/NVDA. Commands are handled above.
+        
+        raw_text = message.text.strip().upper().replace('多', '').replace('空', '')
+        
         if not re.match(r'^([0-9]{4}|[A-Z]{1,5})$', raw_text):
             return
-
+            
         ticker = raw_text
         safe_reply_to(message, f'⏳ 正在產生 `{ticker}` 報告...')
         
@@ -2135,7 +2629,9 @@ if bot:
         
         if img_path and os.path.exists(img_path): safe_send_photo(message.chat.id, img_path)
         if strategy_img_path and os.path.exists(strategy_img_path): safe_send_photo(message.chat.id, strategy_img_path)
-        if report: safe_send_message(message.chat.id, report, parse_mode='Markdown')
+        
+        if report: 
+            safe_send_message(message.chat.id, report, parse_mode='Markdown')
 
 def schedule_loop():
     schedule.every().day.at('16:30').do(start_scan_thread, chat_id=CHAT_ID, requested_by_user=False, region='TW')
@@ -2144,62 +2640,7 @@ def schedule_loop():
     
     while True: schedule.run_pending(); time.sleep(1)
 
-def parse_cli_args(argv=None):
-    parser = argparse.ArgumentParser(description='Stock Minervini Pro scanner and Telegram bot.')
-    parser.add_argument('--scan', choices=['tw', 'us'], help='Run a one-shot market scan without Telegram polling.')
-    parser.add_argument('--ticker', help='Run a one-shot single ticker report without Telegram polling.')
-    parser.add_argument('--market-mode', choices=['auto', 'offensive', 'defensive'], default='auto')
-    parser.add_argument('--no-bot', action='store_true', help='Do not start Telegram polling or scheduler.')
-    parser.add_argument('--test-mode', action='store_true', help='Limit scan universe for fast smoke tests.')
-    return parser.parse_args(argv)
-
-def run_cli_command(args):
-    global TEST_MODE
-    if args.test_mode:
-        TEST_MODE = True
-
-    if args.ticker:
-        ticker = normalize_ticker(args.ticker)
-        region = 'US' if is_us_ticker(ticker) else 'TW'
-        market_mode = args.market_mode
-        if market_mode == 'auto':
-            market_mode, macro_score = check_market_status(region)
-        else:
-            macro_score = 0.0
-        print(f"[CLI] ticker={ticker} region={region} mode={market_mode} macro_score={macro_score:.2f}", flush=True)
-        report, img_path, strategy_img_path = analyze_stock(ticker, market_mode)
-        if report:
-            print(report, flush=True)
-        if img_path:
-            print(f"[CLI] chart={img_path}", flush=True)
-        if strategy_img_path:
-            print(f"[CLI] strategy_card={strategy_img_path}", flush=True)
-        return True
-
-    if args.scan:
-        region = args.scan.upper()
-        market_mode = args.market_mode
-        if market_mode == 'auto':
-            market_mode, macro_score = check_market_status(region)
-        else:
-            macro_score = 0.0
-        print(f"[CLI] scan={region} mode={market_mode} macro_score={macro_score:.2f}", flush=True)
-        ranked = scan_and_rank_market(None, False, market_mode, region)
-        if not ranked:
-            print("[CLI] no qualified stocks", flush=True)
-            return True
-        for idx, item in enumerate(ranked[:FINAL_TOP_N], start=1):
-            print(f"{idx}. {item['ticker']} total_score={item['total_score']:.1f}", flush=True)
-        return True
-
-    return args.no_bot
-
 if __name__ == '__main__':
-    cli_args = parse_cli_args()
-    if run_cli_command(cli_args):
-        log('CLI/no-bot command finished; Telegram polling not started.')
-        sys.exit(0)
-
     log('🤖 Stock Minervini Pro (Cross-Border Edition) 啟動中...')
     threading.Thread(target=schedule_loop, daemon=True).start()
-    start_telegram_polling()
+    if bot: bot.infinity_polling(timeout=60, long_polling_timeout=30)
