@@ -1,0 +1,160 @@
+{
+  "topic_key": "cooling",
+  "topic_title": "散熱",
+  "generated_at": "2026-05-26 06:36:25",
+  "source_ranked_file": "data/latest_ranked_tw.json",
+  "analysis_window": {
+    "tracked_companies": 3,
+    "deep_analyzed_companies": 3,
+    "max_companies": 8
+  },
+  "topic_brief": {
+    "summary": "從氣冷、液冷到機櫃，對照 AI 伺服器高功耗帶來的散熱升級需求。",
+    "highlights": [
+      "主題共追蹤 3 檔，這次深入解析 3 檔。",
+      "其中 0 檔有最新量化分數，0 檔屬於 priority 名單。",
+      "已解析公司裡有 0 檔營收年增為正、0 檔近 5 日法人偏多。"
+    ],
+    "risks": [
+      "主題股若只剩少數龍頭有分數，其餘公司沒有同步進榜，通常代表資金擴散還不完整。",
+      "若營收動能、法人流向和價格趨勢不同步，題材很容易先漲故事再回頭修正。"
+    ],
+    "leaders": []
+  },
+  "companies": [
+    {
+      "ticker": "3017.TW",
+      "code": "3017",
+      "company": "奇鋐",
+      "lane_title": "散熱",
+      "role": "散熱模組",
+      "focus": "",
+      "thesis": "",
+      "industry": "Electronic Components",
+      "profile": "產業: Electronic Components",
+      "close": null,
+      "total_score": null,
+      "tech_score": null,
+      "fund_score": null,
+      "chip_score": null,
+      "priority_score": null,
+      "estimated_win_rate_pct": null,
+      "strategy": null,
+      "is_priority": false,
+      "tags": [],
+      "single_month_revenue": 15631449000.0,
+      "single_month_mom": null,
+      "single_month_yoy": null,
+      "eps_latest_quarter": 20.17,
+      "eps_ttm": 61.06,
+      "chips_summary": "TWSE-T86：近 5 日三大法人合計賣超 1843 張；取近 10 個交易日",
+      "foreign_5d": -2529.662,
+      "trust_5d": 728.56,
+      "dealer_5d": 0.0,
+      "total_5d": -1843.4279999999999,
+      "sources": [
+        "FinMind-Revenue",
+        "FinMind-EPS",
+        "TWSE-T86"
+      ],
+      "bull_signals": [
+        "TTM EPS 約 61.06，獲利基底仍在。"
+      ],
+      "risk_flags": [
+        "近 5 日法人偏空，約賣超 1843 張。"
+      ],
+      "summary": "TTM EPS 約 61.06，獲利基底仍在。"
+    },
+    {
+      "ticker": "3324.TW",
+      "code": "3324",
+      "company": "雙鴻",
+      "lane_title": "散熱",
+      "role": "散熱模組",
+      "focus": "",
+      "thesis": "",
+      "industry": "Electronic Components",
+      "profile": "產業: Electronic Components",
+      "close": null,
+      "total_score": null,
+      "tech_score": null,
+      "fund_score": null,
+      "chip_score": null,
+      "priority_score": null,
+      "estimated_win_rate_pct": null,
+      "strategy": null,
+      "is_priority": false,
+      "tags": [],
+      "single_month_revenue": 2842339000.0,
+      "single_month_mom": null,
+      "single_month_yoy": null,
+      "eps_latest_quarter": 12.61,
+      "eps_ttm": 35.15,
+      "chips_summary": "FinMind-Chips：近 5 日三大法人合計賣超 2156 張",
+      "foreign_5d": -1709.906,
+      "trust_5d": -243.044,
+      "dealer_5d": -202.57,
+      "total_5d": -2155.52,
+      "sources": [
+        "FinMind-Revenue",
+        "FinMind-EPS",
+        "FinMind-Chips"
+      ],
+      "bull_signals": [
+        "TTM EPS 約 35.15，獲利基底仍在。"
+      ],
+      "risk_flags": [
+        "近 5 日法人偏空，約賣超 2156 張。"
+      ],
+      "summary": "TTM EPS 約 35.15，獲利基底仍在。"
+    },
+    {
+      "ticker": "6230.TW",
+      "code": "6230",
+      "company": "尼得科超眾",
+      "lane_title": "散熱",
+      "role": "散熱模組",
+      "focus": "",
+      "thesis": "",
+      "industry": "Electronic Components",
+      "profile": "產業: Electronic Components",
+      "close": null,
+      "total_score": null,
+      "tech_score": null,
+      "fund_score": null,
+      "chip_score": null,
+      "priority_score": null,
+      "estimated_win_rate_pct": null,
+      "strategy": null,
+      "is_priority": false,
+      "tags": [],
+      "single_month_revenue": 828406000.0,
+      "single_month_mom": null,
+      "single_month_yoy": null,
+      "eps_latest_quarter": -0.91,
+      "eps_ttm": -2.58,
+      "chips_summary": "TWSE-T86：近 5 日三大法人合計賣超 34 張；取近 10 個交易日",
+      "foreign_5d": -34.973,
+      "trust_5d": 0.0,
+      "dealer_5d": 0.0,
+      "total_5d": -34.271,
+      "sources": [
+        "FinMind-Revenue",
+        "FinMind-EPS",
+        "TWSE-T86"
+      ],
+      "bull_signals": [
+        "目前偏向等待更多量價與基本面同步轉強的訊號。"
+      ],
+      "risk_flags": [
+        "TTM EPS 未轉正，題材想像需要更多營運驗證。",
+        "近 5 日法人偏空，約賣超 34 張。"
+      ],
+      "summary": "目前偏向等待更多量價與基本面同步轉強的訊號。"
+    }
+  ],
+  "ai_analysis": {
+    "status": "disabled",
+    "reason": "未設定 OLLAMA_BASE_URL 或 OLLAMA_MODEL，先回傳規則式分析。"
+  }
+}

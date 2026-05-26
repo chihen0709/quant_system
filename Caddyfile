@@ -1,0 +1,30 @@
+{
+  admin off
+}
+
+(common_security_headers) {
+  encode zstd gzip
+
+  header {
+    X-Content-Type-Options "nosniff"
+    Referrer-Policy "strict-origin-when-cross-origin"
+    X-Frame-Options "SAMEORIGIN"
+    X-XSS-Protection "1; mode=block"
+    Permissions-Policy "interest-cohort=()"
+  }
+}
+
+http:// {
+  @domain host {$CADDY_DOMAIN:localhost}
+  redir @domain https://{host}{uri} 308
+
+  import common_security_headers
+
+  reverse_proxy quant_web:8000
+}
+
+{$CADDY_DOMAIN:localhost} {
+  import common_security_headers
+
+  reverse_proxy quant_web:8000
+}

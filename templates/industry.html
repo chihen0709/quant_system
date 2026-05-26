@@ -1,0 +1,429 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="hero-grid">
+  <div class="hero-copy hero-panel">
+    <p class="eyebrow">Industry Atlas</p>
+    <h1>{{ industry.topic.title }}</h1>
+    <p class="hero-text hero-text--strong">{{ industry.topic.subtitle }}</p>
+    <p class="hero-text">{{ industry.topic.description }}</p>
+
+    <div class="pill-row">
+      <span class="pill">Tracked {{ industry.coverage.tracked }}</span>
+      <span class="pill">In Ranked {{ industry.coverage.in_rank }}</span>
+      <span class="pill">Priority {{ industry.coverage.priority }}</span>
+      <span class="pill">Updated {{ industry.coverage.updated_at }}</span>
+    </div>
+
+    <div class="tag-row tag-row--spaced">
+      {% for item in industry.highlights %}
+      <span class="tag">{{ item }}</span>
+      {% endfor %}
+    </div>
+
+    <div class="action-row">
+      <a class="button button--solid" href="/industry/{{ industry.topic.key }}?activeTab={{ industry.active_tab }}&refreshIntel=1">更新產業分析</a>
+      <a class="button button--soft" href="/api/industry/{{ industry.topic.key }}/intel">查看 JSON</a>
+    </div>
+  </div>
+
+  <div class="media-stack">
+    {% if industry.report_asset %}
+    <div class="media-frame"><img src="{{ industry.report_asset.url }}" alt="{{ industry.report_asset.label }}"></div>
+    {% else %}
+    <div class="empty-panel">這個主題目前還沒有專屬產業圖圖片。</div>
+    {% endif %}
+  </div>
+</section>
+
+<section class="section-block">
+  <div class="section-head">
+    <div>
+      <p class="eyebrow">View</p>
+      <h2>主題視角</h2>
+    </div>
+  </div>
+  <div class="tab-row">
+    {% for tab in industry.tabs %}
+    <a class="tab-pill{% if tab.key == industry.active_tab %} is-active{% endif %}" href="/industry/{{ industry.topic.key }}?activeTab={{ tab.key }}">{{ tab.label }}</a>
+    {% endfor %}
+  </div>
+</section>
+
+<section class="split-section">
+  <article class="detail-card">
+    <p class="eyebrow">Current Focus</p>
+    <h2>{{ industry.active_tab_meta.label }}</h2>
+    <p class="detail-card__lead">{{ industry.active_tab_meta.summary }}</p>
+    {% if industry.active_panel.headline %}
+    <h3>{{ industry.active_panel.headline }}</h3>
+    {% endif %}
+    {% if industry.active_panel.summary %}
+    <p>{{ industry.active_panel.summary }}</p>
+    {% endif %}
+    {% if industry.active_panel.bullets %}
+    <ul class="dot-list">
+      {% for item in industry.active_panel.bullets %}
+      <li>{{ item }}</li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+  </article>
+
+  <article class="detail-card">
+    <p class="eyebrow">Detailed Analysis</p>
+    <h2>產業拆解</h2>
+
+    {% if industry.deep_dive.market_question %}
+    <div class="detail-block">
+      <h3>市場命題</h3>
+      <p>{{ industry.deep_dive.market_question }}</p>
+    </div>
+    {% endif %}
+
+    {% if industry.deep_dive.thesis %}
+    <div class="detail-block">
+      <h3>投資主軸</h3>
+      <ul class="dot-list">
+        {% for item in industry.deep_dive.thesis %}
+        <li>{{ item }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+
+    {% if industry.deep_dive.bottlenecks %}
+    <div class="detail-block">
+      <h3>瓶頸與關鍵節點</h3>
+      <ul class="dot-list">
+        {% for item in industry.deep_dive.bottlenecks %}
+        <li>{{ item }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+  </article>
+</section>
+
+{% if industry_intel %}
+<section class="split-section">
+  <article class="detail-card">
+    <p class="eyebrow">Data Intelligence</p>
+    <h2>資料面摘要</h2>
+    {% if industry_intel.generated_at %}
+    <p class="detail-card__lead">產生時間 {{ industry_intel.generated_at }}，本次深入解析 {{ industry_intel.analysis_window.deep_analyzed_companies }} 檔。</p>
+    {% endif %}
+    {% if industry_intel.topic_brief.summary %}
+    <p>{{ industry_intel.topic_brief.summary }}</p>
+    {% endif %}
+    {% if industry_intel.topic_brief.highlights %}
+    <ul class="dot-list">
+      {% for item in industry_intel.topic_brief.highlights %}
+      <li>{{ item }}</li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+    {% if industry_intel.topic_brief.leaders %}
+    <div class="tag-row tag-row--spaced">
+      {% for item in industry_intel.topic_brief.leaders %}
+      <span class="tag">{{ item.ticker }} {{ item.company }}</span>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </article>
+
+  <article class="detail-card">
+    <p class="eyebrow">AI Analysis</p>
+    <h2>模型觀點</h2>
+    {% if industry_intel.ai_analysis.status == 'ready' %}
+    <p class="detail-card__lead">{{ industry_intel.ai_analysis.summary }}</p>
+    {% if industry_intel.ai_analysis.demand_drivers %}
+    <div class="detail-block">
+      <h3>需求驅動</h3>
+      <ul class="dot-list">
+        {% for item in industry_intel.ai_analysis.demand_drivers %}
+        <li>{{ item }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+    {% if industry_intel.ai_analysis.bottlenecks %}
+    <div class="detail-block">
+      <h3>瓶頸</h3>
+      <ul class="dot-list">
+        {% for item in industry_intel.ai_analysis.bottlenecks %}
+        <li>{{ item }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+    {% elif industry_intel.ai_analysis.status == 'disabled' %}
+    <p>{{ industry_intel.ai_analysis.reason }}</p>
+    {% elif industry_intel.ai_analysis.status == 'error' %}
+    <p>AI 分析暫時失敗：{{ industry_intel.ai_analysis.reason }}</p>
+    {% else %}
+    <p>AI 分析尚未建立。</p>
+    {% endif %}
+  </article>
+</section>
+{% endif %}
+
+{% if industry.chain_steps %}
+<section class="section-block">
+  <div class="section-head">
+    <div>
+      <p class="eyebrow">Value Chain</p>
+      <h2>價值鏈路徑</h2>
+    </div>
+  </div>
+  <div class="card-grid card-grid--three">
+    {% for step in industry.chain_steps %}
+    <article class="feature-card">
+      <h3>{{ step.stage }}</h3>
+      <p>{{ step.summary }}</p>
+      {% if step.winners %}
+      <div class="tag-row">
+        {% for item in step.winners %}
+        <span class="tag">{{ item }}</span>
+        {% endfor %}
+      </div>
+      {% endif %}
+    </article>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+
+{% if industry.watch_metrics %}
+<section class="section-block">
+  <div class="section-head">
+    <div>
+      <p class="eyebrow">Watch List</p>
+      <h2>追蹤指標</h2>
+    </div>
+  </div>
+  <div class="card-grid card-grid--three">
+    {% for item in industry.watch_metrics %}
+    <article class="feature-card">
+      <h3>{{ item.label }}</h3>
+      <p class="feature-card__meta feature-card__meta--strong">{{ item.why }}</p>
+      <p><strong>偏多：</strong>{{ item.bull }}</p>
+      <p><strong>偏空：</strong>{{ item.bear }}</p>
+    </article>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+
+<section class="section-block">
+  <div class="section-head">
+    <div>
+      <p class="eyebrow">Supply Nodes</p>
+      <h2>供應鏈節點</h2>
+    </div>
+  </div>
+  <div class="card-grid card-grid--two">
+    {% for lane in industry.lanes %}
+    <article class="feature-card feature-card--lane">
+      <h3>{{ lane.title }}</h3>
+      <p class="feature-card__meta feature-card__meta--strong">{{ lane.description }}</p>
+      {% if lane.notes %}
+      <ul class="dot-list">
+        {% for note in lane.notes %}
+        <li>{{ note }}</li>
+        {% endfor %}
+      </ul>
+      {% endif %}
+      <div class="company-list">
+        {% for company in lane.companies %}
+        <a class="company-card{% if company.in_rank %} is-ranked{% endif %}" href="{{ company.stock_url }}">
+          <div class="company-card__head">
+            <div>
+              <strong>{{ company.name }}</strong>
+              <div class="cell-sub">{{ company.ticker }}</div>
+            </div>
+            {% if company.in_rank %}
+            <span class="badge">{{ fmt_num(company.total_score) }}</span>
+            {% endif %}
+          </div>
+          <p class="company-card__role">{{ company.role }}</p>
+          {% if company.thesis %}
+          <p class="company-card__note">{{ company.thesis }}</p>
+          {% endif %}
+          {% if company.in_rank %}
+          <p class="company-card__note">策略 {{ company.strategy or '綜合策略' }} | Close {{ fmt_price(company.close) }}</p>
+          {% else %}
+          <p class="company-card__note">目前未進最新排行</p>
+          {% endif %}
+        </a>
+        {% endfor %}
+      </div>
+    </article>
+    {% endfor %}
+  </div>
+</section>
+
+{% if industry_intel and industry_intel.companies %}
+<section class="section-block">
+  <div class="section-head">
+    <div>
+      <p class="eyebrow">Deep Research</p>
+      <h2>公司深度觀察</h2>
+    </div>
+  </div>
+  <div class="card-grid card-grid--two">
+    {% for item in industry_intel.companies %}
+    <article class="feature-card feature-card--intel">
+      <div class="feature-card__head">
+        <div>
+          <h3><a class="stock-link" href="/stock/{{ item.ticker }}">{{ item.ticker }}</a></h3>
+          <p>{{ item.company }}{% if item.lane_title %} | {{ item.lane_title }}{% endif %}</p>
+        </div>
+        {% if item.total_score %}
+        <span class="badge">{{ fmt_num(item.total_score) }}</span>
+        {% endif %}
+      </div>
+      <p class="feature-card__meta feature-card__meta--strong">{{ item.role or item.industry }}</p>
+      {% if item.summary %}
+      <p class="feature-card__meta">{{ item.summary }}</p>
+      {% endif %}
+      <div class="metric-grid metric-grid--wide metric-grid--intel">
+        <div class="metric-card metric-card--compact">
+          <p class="metric-card__label">Close</p>
+          <p class="metric-card__value">{{ fmt_price(item.close) }}</p>
+        </div>
+        <div class="metric-card metric-card--compact">
+          <p class="metric-card__label">Revenue YoY</p>
+          <p class="metric-card__value">{{ fmt_num(item.single_month_yoy) }}{% if item.single_month_yoy is not none %}%{% endif %}</p>
+        </div>
+        <div class="metric-card metric-card--compact">
+          <p class="metric-card__label">EPS TTM</p>
+          <p class="metric-card__value">{{ fmt_num(item.eps_ttm, digits=2) }}</p>
+        </div>
+        <div class="metric-card metric-card--compact">
+          <p class="metric-card__label">法人 5D</p>
+          <p class="metric-card__value">{{ fmt_num(item.total_5d, digits=0) }}</p>
+        </div>
+      </div>
+      {% if item.profile %}
+      <p class="feature-card__meta">{{ item.profile }}</p>
+      {% endif %}
+      {% if item.bull_signals %}
+      <div class="detail-block">
+        <h3>偏多訊號</h3>
+        <ul class="dot-list">
+          {% for signal in item.bull_signals %}
+          <li>{{ signal }}</li>
+          {% endfor %}
+        </ul>
+      </div>
+      {% endif %}
+      {% if item.risk_flags %}
+      <div class="detail-block">
+        <h3>風險提示</h3>
+        <ul class="dot-list">
+          {% for signal in item.risk_flags %}
+          <li>{{ signal }}</li>
+          {% endfor %}
+        </ul>
+      </div>
+      {% endif %}
+      {% if item.chips_summary %}
+      <p class="feature-card__meta feature-card__meta--strong">籌碼：{{ item.chips_summary }}</p>
+      {% endif %}
+      {% if item.sources %}
+      <div class="tag-row">
+        {% for source in item.sources %}
+        <span class="tag">{{ source }}</span>
+        {% endfor %}
+      </div>
+      {% endif %}
+    </article>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+
+<section class="section-block">
+  <div class="section-head">
+    <div>
+      <p class="eyebrow">Quant Overlay</p>
+      <h2>量化焦點</h2>
+    </div>
+  </div>
+  {% if industry.leaders %}
+  <div class="card-grid card-grid--four">
+    {% for item in industry.leaders %}
+    <a class="feature-card feature-card--leader" href="{{ item.stock_url }}">
+      <div class="feature-card__head">
+        <div>
+          <h3>{{ item.ticker }}</h3>
+          <p>{{ item.name }}</p>
+        </div>
+        <span class="badge">{{ fmt_num(item.total_score) }}</span>
+      </div>
+      <p class="feature-card__meta">{{ item.industry or item.role }}</p>
+      <p class="feature-card__meta">策略 {{ item.strategy or '綜合策略' }}</p>
+      <div class="tag-row">
+        {% for tag in item.tags[:3] %}
+        <span class="tag">{{ tag }}</span>
+        {% endfor %}
+      </div>
+    </a>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="empty-panel">這個主題目前還沒有公司進到最新排行。</div>
+  {% endif %}
+</section>
+
+<section class="section-block">
+  <div class="section-head">
+    <div>
+      <p class="eyebrow">Coverage Matrix</p>
+      <h2>題材公司矩陣</h2>
+    </div>
+    <div class="filter-box">
+      <input type="search" class="filter-input" placeholder="搜尋公司、代號、角色" data-company-filter data-target="industry-matrix">
+    </div>
+  </div>
+
+  {% if industry.table_rows %}
+  <div class="table-shell">
+    <table class="data-table" id="industry-matrix">
+      <thead>
+        <tr>
+          <th>節點</th>
+          <th>公司</th>
+          <th>角色</th>
+          <th>狀態</th>
+          <th>Total</th>
+          <th>Tech</th>
+          <th>Close</th>
+          <th>策略</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in industry.table_rows %}
+        <tr data-search-text="{{ (row.lane_title ~ ' ' ~ row.name ~ ' ' ~ row.ticker ~ ' ' ~ row.role)|lower }}">
+          <td>{{ row.lane_title }}</td>
+          <td>
+            <a class="stock-link" href="{{ row.stock_url }}">{{ row.ticker }}</a>
+            <div class="cell-sub">{{ row.name }}</div>
+          </td>
+          <td>{{ row.role }}</td>
+          <td>{% if row.in_rank %}已進最新排行{% else %}未進排行{% endif %}</td>
+          <td>{% if row.in_rank %}{{ fmt_num(row.total_score) }}{% else %}-{% endif %}</td>
+          <td>{% if row.in_rank %}{{ fmt_num(row.tech_score) }}{% else %}-{% endif %}</td>
+          <td>{% if row.in_rank %}{{ fmt_price(row.close) }}{% else %}-{% endif %}</td>
+          <td>{% if row.in_rank %}{{ row.strategy or '綜合策略' }}{% else %}-{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty-panel">這個主題目前沒有公司資料。</div>
+  {% endif %}
+</section>
+{% endblock %}

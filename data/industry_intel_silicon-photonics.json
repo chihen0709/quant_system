@@ -1,0 +1,161 @@
+{
+  "topic_key": "silicon-photonics",
+  "topic_title": "矽光子",
+  "generated_at": "2026-05-26 06:32:29",
+  "source_ranked_file": "data/latest_ranked_tw.json",
+  "analysis_window": {
+    "tracked_companies": 3,
+    "deep_analyzed_companies": 3,
+    "max_companies": 8
+  },
+  "topic_brief": {
+    "summary": "針對高速互連、資料中心與光通訊鏈的主題頁，適合當作 AI 伺服器頻寬升級的延伸觀察。",
+    "highlights": [
+      "主題共追蹤 3 檔，這次深入解析 3 檔。",
+      "其中 0 檔有最新量化分數，0 檔屬於 priority 名單。",
+      "已解析公司裡有 0 檔營收年增為正、2 檔近 5 日法人偏多。"
+    ],
+    "risks": [
+      "主題股若只剩少數龍頭有分數，其餘公司沒有同步進榜，通常代表資金擴散還不完整。",
+      "若營收動能、法人流向和價格趨勢不同步，題材很容易先漲故事再回頭修正。"
+    ],
+    "leaders": []
+  },
+  "companies": [
+    {
+      "ticker": "3163.TW",
+      "code": "3163",
+      "company": "波若威",
+      "lane_title": "光通訊",
+      "role": "光通訊",
+      "focus": "",
+      "thesis": "",
+      "industry": "Communication Equipment",
+      "profile": "產業: Communication Equipment",
+      "close": null,
+      "total_score": null,
+      "tech_score": null,
+      "fund_score": null,
+      "chip_score": null,
+      "priority_score": null,
+      "estimated_win_rate_pct": null,
+      "strategy": null,
+      "is_priority": false,
+      "tags": [],
+      "single_month_revenue": 199142000.0,
+      "single_month_mom": null,
+      "single_month_yoy": null,
+      "eps_latest_quarter": 3.03,
+      "eps_ttm": 8.639999999999999,
+      "chips_summary": "FinMind-Chips：近 5 日三大法人合計賣超 1279 張",
+      "foreign_5d": -2120.376,
+      "trust_5d": 790.0,
+      "dealer_5d": 50.91,
+      "total_5d": -1279.4660000000001,
+      "sources": [
+        "FinMind-Revenue",
+        "FinMind-EPS",
+        "FinMind-Chips"
+      ],
+      "bull_signals": [
+        "TTM EPS 約 8.64，獲利基底仍在。"
+      ],
+      "risk_flags": [
+        "近 5 日法人偏空，約賣超 1279 張。"
+      ],
+      "summary": "TTM EPS 約 8.64，獲利基底仍在。"
+    },
+    {
+      "ticker": "4979.TW",
+      "code": "4979",
+      "company": "華星光",
+      "lane_title": "光通訊",
+      "role": "光模組",
+      "focus": "",
+      "thesis": "",
+      "industry": "Semiconductors",
+      "profile": "產業: Semiconductors",
+      "close": null,
+      "total_score": null,
+      "tech_score": null,
+      "fund_score": null,
+      "chip_score": null,
+      "priority_score": null,
+      "estimated_win_rate_pct": null,
+      "strategy": null,
+      "is_priority": false,
+      "tags": [],
+      "single_month_revenue": 412778000.0,
+      "single_month_mom": null,
+      "single_month_yoy": null,
+      "eps_latest_quarter": 1.62,
+      "eps_ttm": 5.53,
+      "chips_summary": "FinMind-Chips：近 5 日三大法人合計買超 386 張",
+      "foreign_5d": 433.802,
+      "trust_5d": -113.0,
+      "dealer_5d": 65.101,
+      "total_5d": 385.903,
+      "sources": [
+        "FinMind-Revenue",
+        "FinMind-EPS",
+        "FinMind-Chips"
+      ],
+      "bull_signals": [
+        "TTM EPS 約 5.53，獲利基底仍在。",
+        "近 5 日法人合計偏多，約買超 386 張。"
+      ],
+      "risk_flags": [
+        "短線仍要留意題材過熱、估值先跑與訂單遞延風險。"
+      ],
+      "summary": "TTM EPS 約 5.53，獲利基底仍在。"
+    },
+    {
+      "ticker": "3081.TW",
+      "code": "3081",
+      "company": "聯亞",
+      "lane_title": "光通訊",
+      "role": "光元件",
+      "focus": "",
+      "thesis": "",
+      "industry": "Semiconductor Equipment & Materials",
+      "profile": "產業: Semiconductor Equipment & Materials",
+      "close": null,
+      "total_score": null,
+      "tech_score": null,
+      "fund_score": null,
+      "chip_score": null,
+      "priority_score": null,
+      "estimated_win_rate_pct": null,
+      "strategy": null,
+      "is_priority": false,
+      "tags": [],
+      "single_month_revenue": 395349000.0,
+      "single_month_mom": null,
+      "single_month_yoy": null,
+      "eps_latest_quarter": 3.44,
+      "eps_ttm": 7.639999999999999,
+      "chips_summary": "FinMind-Chips：近 5 日三大法人合計買超 653 張",
+      "foreign_5d": 190.06899999999993,
+      "trust_5d": 403.88499999999993,
+      "dealer_5d": 59.345000000000006,
+      "total_5d": 653.2989999999999,
+      "sources": [
+        "FinMind-Revenue",
+        "FinMind-EPS",
+        "FinMind-Chips"
+      ],
+      "bull_signals": [
+        "TTM EPS 約 7.64，獲利基底仍在。",
+        "近 5 日法人合計偏多，約買超 653 張。"
+      ],
+      "risk_flags": [
+        "短線仍要留意題材過熱、估值先跑與訂單遞延風險。"
+      ],
+      "summary": "TTM EPS 約 7.64，獲利基底仍在。"
+    }
+  ],
+  "ai_analysis": {
+    "status": "disabled",
+    "reason": "未設定 OLLAMA_BASE_URL 或 OLLAMA_MODEL，先回傳規則式分析。"
+  }
+}

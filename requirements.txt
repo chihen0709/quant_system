@@ -1,6 +1,12 @@
 yfinance
+requests
 pandas
 numpy
+fastapi
+uvicorn[standard]
+jinja2
+python-multipart
+PyYAML
 ta
 pyTelegramBotAPI
 playwright

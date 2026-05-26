@@ -1,0 +1,159 @@
+{
+  "topic_key": "cowos",
+  "topic_title": "CoWoS / 先進封裝",
+  "generated_at": "2026-05-26 06:27:45",
+  "source_ranked_file": "data/latest_ranked_tw.json",
+  "analysis_window": {
+    "tracked_companies": 3,
+    "deep_analyzed_companies": 3,
+    "max_companies": 8
+  },
+  "topic_brief": {
+    "summary": "以 CoWoS 產能、封測與周邊材料為主軸的追蹤頁。適合拿來和載板、散熱、測試鏈做交叉驗證。",
+    "highlights": [
+      "主題共追蹤 3 檔，這次深入解析 3 檔。",
+      "其中 0 檔有最新量化分數，0 檔屬於 priority 名單。",
+      "已解析公司裡有 0 檔營收年增為正、0 檔近 5 日法人偏多。"
+    ],
+    "risks": [
+      "主題股若只剩少數龍頭有分數，其餘公司沒有同步進榜，通常代表資金擴散還不完整。",
+      "若營收動能、法人流向和價格趨勢不同步，題材很容易先漲故事再回頭修正。"
+    ],
+    "leaders": []
+  },
+  "companies": [
+    {
+      "ticker": "2330.TW",
+      "code": "2330",
+      "company": "台積電",
+      "lane_title": "封裝",
+      "role": "CoWoS",
+      "focus": "",
+      "thesis": "",
+      "industry": "Semiconductors",
+      "profile": "產業: Semiconductors",
+      "close": null,
+      "total_score": null,
+      "tech_score": null,
+      "fund_score": null,
+      "chip_score": null,
+      "priority_score": null,
+      "estimated_win_rate_pct": null,
+      "strategy": null,
+      "is_priority": false,
+      "tags": [],
+      "single_month_revenue": 410725118000.0,
+      "single_month_mom": null,
+      "single_month_yoy": null,
+      "eps_latest_quarter": 22.08,
+      "eps_ttm": 74.39,
+      "chips_summary": "TWSE-T86：近 5 日三大法人合計賣超 12126 張；取近 10 個交易日",
+      "foreign_5d": -22485.503,
+      "trust_5d": 10163.675,
+      "dealer_5d": 0.0,
+      "total_5d": -12125.572,
+      "sources": [
+        "FinMind-Revenue",
+        "FinMind-EPS",
+        "TWSE-T86"
+      ],
+      "bull_signals": [
+        "TTM EPS 約 74.39，獲利基底仍在。"
+      ],
+      "risk_flags": [
+        "近 5 日法人偏空，約賣超 12126 張。"
+      ],
+      "summary": "TTM EPS 約 74.39，獲利基底仍在。"
+    },
+    {
+      "ticker": "3711.TW",
+      "code": "3711",
+      "company": "日月光投控",
+      "lane_title": "封裝",
+      "role": "封測",
+      "focus": "",
+      "thesis": "",
+      "industry": "Semiconductors",
+      "profile": "產業: Semiconductors",
+      "close": null,
+      "total_score": null,
+      "tech_score": null,
+      "fund_score": null,
+      "chip_score": null,
+      "priority_score": null,
+      "estimated_win_rate_pct": null,
+      "strategy": null,
+      "is_priority": false,
+      "tags": [],
+      "single_month_revenue": 62247107000.0,
+      "single_month_mom": null,
+      "single_month_yoy": null,
+      "eps_latest_quarter": 3.24,
+      "eps_ttm": 10.86,
+      "chips_summary": "TWSE-T86：近 5 日三大法人合計賣超 1706 張；取近 10 個交易日",
+      "foreign_5d": -4705.129000000001,
+      "trust_5d": 3306.683,
+      "dealer_5d": 0.0,
+      "total_5d": -1705.6249999999995,
+      "sources": [
+        "FinMind-Revenue",
+        "FinMind-EPS",
+        "TWSE-T86"
+      ],
+      "bull_signals": [
+        "TTM EPS 約 10.86，獲利基底仍在。"
+      ],
+      "risk_flags": [
+        "近 5 日法人偏空，約賣超 1706 張。"
+      ],
+      "summary": "TTM EPS 約 10.86，獲利基底仍在。"
+    },
+    {
+      "ticker": "6147.TW",
+      "code": "6147",
+      "company": "頎邦",
+      "lane_title": "封裝",
+      "role": "封測",
+      "focus": "",
+      "thesis": "",
+      "industry": "Semiconductor Equipment & Materials",
+      "profile": "產業: Semiconductor Equipment & Materials",
+      "close": null,
+      "total_score": null,
+      "tech_score": null,
+      "fund_score": null,
+      "chip_score": null,
+      "priority_score": null,
+      "estimated_win_rate_pct": null,
+      "strategy": null,
+      "is_priority": false,
+      "tags": [],
+      "single_month_revenue": 2185380000.0,
+      "single_month_mom": null,
+      "single_month_yoy": null,
+      "eps_latest_quarter": 0.59,
+      "eps_ttm": 3.42,
+      "chips_summary": "Goodinfo-Chips：近 5 日三大法人合計賣超 6780 張",
+      "foreign_5d": -23600.0,
+      "trust_5d": 19100.0,
+      "dealer_5d": -2280.0,
+      "total_5d": -6780.0,
+      "sources": [
+        "FinMind-Revenue",
+        "FinMind-EPS",
+        "Goodinfo-Chips"
+      ],
+      "bull_signals": [
+        "TTM EPS 約 3.42，獲利基底仍在。"
+      ],
+      "risk_flags": [
+        "近 5 日法人偏空，約賣超 6780 張。"
+      ],
+      "summary": "TTM EPS 約 3.42，獲利基底仍在。"
+    }
+  ],
+  "ai_analysis": {
+    "status": "disabled",
+    "reason": "未設定 OLLAMA_BASE_URL 或 OLLAMA_MODEL，先回傳規則式分析。"
+  }
+}

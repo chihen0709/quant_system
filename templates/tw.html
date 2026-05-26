@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="hero-grid">
+  <div class="hero-copy hero-panel">
+    <p class="eyebrow">Telegram Sync</p>
+    <h1>台股推薦 Top 10</h1>
+    <p class="hero-text">
+      這頁只讀 `data/latest_ranked_tw.json`，所以 Telegram 推播與 Web 看到的是同一批股票、
+      同一組分數、同一個更新時間。
+    </p>
+    <div class="pill-row">
+      <span class="pill">Updated {{ ranked.updated_at }}</span>
+      {% if top_pick %}
+      <span class="pill">{{ top_pick.ticker }} {{ top_pick.company }} 目前排第一</span>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="media-stack">
+    {% if priority_report %}
+    <div class="media-frame"><img src="/reports/{{ priority_report }}" alt="TW priority top 10"></div>
+    {% endif %}
+    {% if top_report %}
+    <div class="media-frame"><img src="/reports/{{ top_report }}" alt="TW top dashboard"></div>
+    {% endif %}
+  </div>
+</section>
+
+<section class="section-block">
+  <div class="section-head">
+    <div>
+      <p class="eyebrow">Ranked List</p>
+      <h2>最新排行</h2>
+    </div>
+  </div>
+  {% if rows %}
+  <div class="table-shell">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>股票 / 公司</th>
+          <th>產業</th>
+          <th>Close</th>
+          <th>Total</th>
+          <th>Tech</th>
+          <th>策略</th>
+          <th>Tags</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+        <tr>
+          <td class="cell-rank">{{ loop.index }}</td>
+          <td>
+            <a class="stock-link" href="/stock/{{ row.ticker }}">{{ row.ticker }}</a>
+            <div class="cell-sub">{{ row.company }}</div>
+          </td>
+          <td>{{ row.industry or '未分類' }}</td>
+          <td>{{ fmt_price(row.close) }}</td>
+          <td><span class="score-chip">{{ fmt_num(row.total_score) }}</span></td>
+          <td>{{ fmt_num(row.tech_score) }}</td>
+          <td>
+            {{ row.strategy or '綜合策略' }}
+            <div class="cell-sub">勝率 {{ fmt_num(row.estimated_win_rate_pct) }}%</div>
+          </td>
+          <td>
+            <div class="tag-row">
+              {% for tag in row.tags[:4] %}
+              <span class="tag">{{ tag }}</span>
+              {% endfor %}
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty-panel">目前沒有最新台股排行資料。</div>
+  {% endif %}
+</section>
+{% endblock %}

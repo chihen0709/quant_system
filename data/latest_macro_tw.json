@@ -1,0 +1,171 @@
+{
+  "rows": [
+    {
+      "label": "今日",
+      "date": "2026-05-26",
+      "index_ret": -0.2727268561373286,
+      "index_ret_display": "-0.27%",
+      "score": 0.002999999999999975,
+      "sentiment": "中性",
+      "fields": [
+        {
+          "key": "Index_Momentum",
+          "label": "指數動能",
+          "display": "-0.27%",
+          "value": -0.2727268561373286,
+          "score": 0.24999999999999997
+        },
+        {
+          "key": "Foreign_Spot",
+          "label": "外資現貨",
+          "display": "-26,453",
+          "value": -26453.05,
+          "score": 0.0
+        },
+        {
+          "key": "Foreign_Fut",
+          "label": "外資期貨",
+          "display": "-54,391",
+          "value": -54391.0,
+          "score": -0.25
+        },
+        {
+          "key": "PCR_Ratio",
+          "label": "PCR",
+          "display": "125.8",
+          "value": 125.76,
+          "score": 0.1
+        },
+        {
+          "key": "Retail_Sentiment",
+          "label": "散戶多空",
+          "display": "+34.6%",
+          "value": 34.583081874874274,
+          "score": -0.25
+        },
+        {
+          "key": "Top_10_Traders",
+          "label": "十大交易人",
+          "display": "-8,614",
+          "value": -8614.0,
+          "score": -0.25
+        }
+      ],
+      "real_count": 6,
+      "data_status": "6/6 real"
+    },
+    {
+      "label": "T-1",
+      "date": "2026-05-25",
+      "index_ret": 3.2564374395079865,
+      "index_ret_display": "+3.26%",
+      "score": 0.16125,
+      "sentiment": "中性",
+      "fields": [
+        {
+          "key": "Index_Momentum",
+          "label": "指數動能",
+          "display": "+3.26%",
+          "value": 3.2564374395079865,
+          "score": 0.6
+        },
+        {
+          "key": "Foreign_Spot",
+          "label": "外資現貨",
+          "display": "-23,712",
+          "value": -23711.876000000004,
+          "score": 0.0
+        },
+        {
+          "key": "Foreign_Fut",
+          "label": "外資期貨",
+          "display": "-51,458",
+          "value": -51458.0,
+          "score": -0.25
+        },
+        {
+          "key": "PCR_Ratio",
+          "label": "PCR",
+          "display": "148.7",
+          "value": 148.71,
+          "score": 0.2
+        },
+        {
+          "key": "Retail_Sentiment",
+          "label": "散戶多空",
+          "display": "+20.4%",
+          "value": 20.35409666580512,
+          "score": -0.25
+        },
+        {
+          "key": "Top_10_Traders",
+          "label": "十大交易人",
+          "display": "N/A",
+          "value": null,
+          "score": 0.0
+        }
+      ],
+      "real_count": 5,
+      "data_status": "5/6 real"
+    },
+    {
+      "label": "T-2",
+      "date": "2026-05-22",
+      "index_ret": 2.175003462803926,
+      "index_ret_display": "+2.18%",
+      "score": 0.18562499999999998,
+      "sentiment": "中性",
+      "fields": [
+        {
+          "key": "Index_Momentum",
+          "label": "指數動能",
+          "display": "+2.18%",
+          "value": 2.175003462803926,
+          "score": 0.6
+        },
+        {
+          "key": "Foreign_Spot",
+          "label": "外資現貨",
+          "display": "-14,058",
+          "value": -14058.165,
+          "score": 0.0
+        },
+        {
+          "key": "Foreign_Fut",
+          "label": "外資期貨",
+          "display": "-46,483",
+          "value": -46483.0,
+          "score": -0.25
+        },
+        {
+          "key": "PCR_Ratio",
+          "label": "PCR",
+          "display": "156.2",
+          "value": 156.25,
+          "score": 0.2
+        },
+        {
+          "key": "Retail_Sentiment",
+          "label": "散戶多空",
+          "display": "+11.3%",
+          "value": 11.348083001236773,
+          "score": -0.1
+        },
+        {
+          "key": "Top_10_Traders",
+          "label": "十大交易人",
+          "display": "N/A",
+          "value": null,
+          "score": 0.0
+        }
+      ],
+      "real_count": 5,
+      "data_status": "5/6 real"
+    }
+  ],
+  "latest_score": 0.002999999999999975,
+  "latest_mode": "defensive",
+  "region": "TW",
+  "updated_at": "2026-05-26 20:02:58",
+  "report_image": "TW_macro_dashboard.png"
+}

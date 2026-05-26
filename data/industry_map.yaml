@@ -1,0 +1,324 @@
+topics:
+  - key: ic-substrate
+    aliases: [abf, substrate]
+    title: IC 載板
+    subtitle: ABF / BT 載板與 AI 封裝供應鏈
+    description: AI GPU、CoWoS 與高階伺服器升級，把 ABF 載板重新拉回市場核心。這個主題頁不是單看哪一檔最會漲，而是把需求、瓶頸、供應鏈位置與你 Telegram 最新選股分數接成同一張圖。
+    report_image: industry_ic_substrate.png
+    tabs:
+      - key: ai
+        label: AI 需求鏈
+        summary: 從 AI GPU 與高階封裝需求出發，追蹤誰最靠近擴產、良率與交貨節奏。
+      - key: supply
+        label: 供應鏈
+        summary: 依材料、載板、PCB / HDI 與設備切層，看誰掌握真正卡脖子的環節。
+      - key: leaders
+        label: 量化焦點
+        summary: 把最新掃描結果疊回產業鏈，先找已經進榜的股票，再對照它在供應鏈中的角色。
+    highlights:
+      - 高階 ABF 載板是 AI 伺服器與高速運算封裝的重要瓶頸之一。
+      - 載板擴產與良率改善，往往會同步帶動材料、HDI 與設備鏈評價。
+      - 量化分數適合拿來排序追蹤優先順序，但不取代產能循環與供需結構判讀。
+    tab_panels:
+      ai:
+        headline: 先看誰離 AI 訂單最近
+        summary: AI 視角不是把所有相關股都裝進同一籃，而是從需求傳導的先後順序判斷，哪一圈公司最有機會先反映在營收、產能利用率與股價。
+        bullets:
+          - 先進封裝需求先拉動高階 ABF 載板與高速材料，再外溢到 PCB / HDI 與設備。
+          - 真正重要的不是題材名稱，而是良率改善、交期與客戶驗證是否同步往上。
+          - 若 CoWoS 與先進封裝擴產速度加快，載板鏈通常比成熟封裝鏈更早被重估。
+      supply:
+        headline: 再看供應鏈卡在哪裡
+        summary: 供應鏈視角重點是誰的產能與良率決定整條鏈的節奏，以及哪些第二圈公司是在訂單外溢時受惠。
+        bullets:
+          - 載板廠是最直接的核心節點，材料與設備則是景氣拐點的前哨。
+          - 若高階材料供給吃緊，ABF 擴產速度與產品 mix 會先反映在材料與上游板材。
+          - 設備鏈常在市場預期資本支出提升時先漲，但驗證通常落在後續營收與毛利。
+      leaders:
+        headline: 用最新量化分數決定先追誰
+        summary: 這個視角直接接 Telegram 的掃描輸出。只要 `latest_ranked_tw.json` 更新，這頁的量化焦點就會同步更新，不會再有 Web 和 Bot 各自排序的問題。
+        bullets:
+          - 先看主題內哪些公司已進最新排行。
+          - 再看它們的 Total / Tech / Strategy 是否和產業邏輯一致。
+          - 若題材很熱但主題內沒有公司進榜，通常代表價格已跑得太快，或趨勢尚未轉成量化訊號。
+    deep_dive:
+      market_question: AI 伺服器需求持續向上時，市場真正想知道的是高階載板產能與良率能不能跟上，而不是所有題材股會不會一起漲。
+      thesis:
+        - 高階 ABF 載板供給仍是 AI 與高速運算封裝的關鍵約束條件，需求強時議價與產品組合都可能改善。
+        - 若先進封裝產能擴張順利，載板與高速材料鏈通常會在營收與毛利上更快看見彈性。
+        - 第二圈受惠鏈多半在市場確認終端需求不是短單之後，才會獲得更高的評價擴張。
+      bottlenecks:
+        - ABF 載板良率、交期與高階產品 mix 決定了需求是否能真的轉成收入。
+        - 高速 CCL、樹脂與板材若供應吃緊，會壓縮擴產效率與高階產品放量速度。
+        - 設備擴產不等於立刻獲利改善，市場通常會回頭檢查折舊、學習曲線與稼動率。
+      catalysts:
+        - AI GPU 出貨展望上修，連動先進封裝與高階載板需求。
+        - 客戶新平台量產、伺服器板升級與新一代材料認證通過。
+        - 高階產品佔比提升，帶動毛利率與現金流預期修正。
+      risks:
+        - 擴產不如預期或良率卡關，會讓市場重新下修高階產品獲利彈性。
+        - 需求若集中在少數客戶，一旦拉貨節奏變化，股價容易劇烈修正。
+        - 題材過熱時，量化趨勢可能先轉弱，代表市場已經先把故事交易完。
+    chain_steps:
+      - stage: 終端需求
+        summary: AI GPU、雲端伺服器與高速運算平台升級，決定整條鏈後續擴產與拉貨節奏。
+        winners: [2330, 2454, 6669]
+      - stage: 先進封裝 / 載板
+        summary: CoWoS 與高階 ABF 載板是最直接的瓶頸，量產速度與良率會左右供給擴張。
+        winners: [3037, 3189, 8046]
+      - stage: 高速材料
+        summary: 高速 CCL、樹脂與板材是高階平台放量能否順利延續的隱性關鍵。
+        winners: [2383, 6274, 6213]
+      - stage: 外溢受惠
+        summary: 當需求從核心節點外擴，PCB / HDI、設備與自動化鏈才會得到第二波評價。
+        winners: [4958, 2313, 3044, 3583]
+    watch_metrics:
+      - label: ABF 載板稼動率
+        why: 稼動率回升代表真正接單與出貨開始發生，不只是題材熱度。
+        bull: 高階產品稼動率往上，且客戶拉貨節奏穩定。
+        bear: 低階產品稼動率仍弱，高階接單只反映在口頭展望。
+      - label: 高速材料認證進度
+        why: 新材料認證若加速，代表平台世代升級正在發生。
+        bull: 新平台導入、產品 mix 提升、材料供應不再卡關。
+        bear: 認證延後或供應不穩，會拖慢高階產品放量。
+      - label: 先進封裝擴產節奏
+        why: 封裝產能若無法同步，載板鏈的需求很容易只停留在預期。
+        bull: 封裝產能與客戶需求一起上修。
+        bear: 客戶需求還在，但封裝擴產或良率不順。
+      - label: 第二圈受惠鏈是否進榜
+        why: 若題材健康擴散，材料、PCB / HDI 與設備鏈會陸續出現量化強勢股。
+        bull: 主題內多個節點同時出現高分與策略訊號。
+        bear: 只有少數龍頭在撐，鏈上其餘公司沒有趨勢跟進。
+    lanes:
+      - key: demand
+        title: AI / HPC 需求
+        tabs: [ai]
+        description: 帶動先進封裝與高階載板需求的終端應用與平台升級節點。
+        notes:
+          - 這一層負責定義需求是否真實存在。
+          - 題材很熱但終端沒有同步上修時，後面供應鏈容易只剩估值炒作。
+        companies:
+          - ticker: 2330
+            name: 台積電
+            role: CoWoS / 先進封裝需求核心
+            thesis: 封裝產能、客戶導入與先進節點需求，是整條鏈最上游的方向盤。
+          - ticker: 2454
+            name: 聯發科
+            role: 高階晶片設計
+            thesis: 若高階平台升級加快，對高速封裝與板材規格的要求也會跟著提高。
+          - ticker: 6669
+            name: 緯穎
+            role: AI 伺服器
+            thesis: AI 伺服器平台升級與出貨節奏，是題材能否持續外溢的重要觀察點。
+      - key: substrate
+        title: 載板廠
+        tabs: [ai, supply, leaders]
+        description: 直接承接 ABF / BT 載板產能與良率變化的核心節點。
+        notes:
+          - 這一層最容易直接反映需求與供給的缺口。
+          - 良率與產品 mix 的改變，通常比單純擴產更重要。
+        companies:
+          - ticker: 3037
+            name: 欣興
+            role: ABF / HDI
+            thesis: 若高階 ABF 與 HDI 出貨同步改善，市場最容易先回頭重估這種核心節點。
+          - ticker: 3189
+            name: 景碩
+            role: ABF / BT
+            thesis: 產品組合與客戶結構變化，會決定估值想像能不能從修復走向成長。
+          - ticker: 8046
+            name: 南電
+            role: ABF / BT
+            thesis: 當高階需求回來時，毛利與產品結構彈性是最值得盯的部分。
+      - key: materials
+        title: 材料
+        tabs: [ai, supply]
+        description: CCL、樹脂與高速材料，是載板升級時的先行觀察點。
+        notes:
+          - 材料鏈經常比成品廠更早反映平台升級。
+          - 如果材料供應吃緊，擴產故事就很難完全落地。
+        companies:
+          - ticker: 2383
+            name: 台光電
+            role: CCL / 高速材料
+            thesis: 高速材料規格升級時，台光電這種核心供應商通常是第一批受惠者。
+          - ticker: 6274
+            name: 台燿
+            role: CCL
+            thesis: 若高階板材需求同步升高，材料鏈的產品 mix 會先轉強。
+          - ticker: 6213
+            name: 聯茂
+            role: CCL
+            thesis: 高速材料需求擴散時，這類供應商適合觀察是否跟著進榜。
+      - key: pcb
+        title: PCB / HDI
+        tabs: [ai, supply]
+        description: 與伺服器板、HDI 與高層數板連動的第二圈受惠鏈。
+        notes:
+          - 第二圈受惠鏈通常在市場確認需求不是短單後才會比較強。
+          - 若只有題材，沒有出現在量化排行，代表資金尚未全面擴散。
+        companies:
+          - ticker: 4958
+            name: 臻鼎-KY
+            role: PCB
+            thesis: 若伺服器板與高階板需求同步放量，這類大型板廠會更容易被資金重新看見。
+          - ticker: 2313
+            name: 華通
+            role: PCB / HDI
+            thesis: HDI 與高階板需求外溢時，可以觀察是否開始從手機鏈轉成伺服器鏈敘事。
+          - ticker: 3044
+            name: 健鼎
+            role: 伺服器板
+            thesis: 伺服器板規格升級若延續，健鼎這種成熟供應商會是外溢受惠的重要指標。
+      - key: equipment
+        title: 設備
+        tabs: [supply]
+        description: 觀察擴產與良率改善時，設備鏈常會率先反映資本支出節奏。
+        notes:
+          - 設備股容易先交易預期，再回頭檢驗實際訂單。
+          - 它們常是題材第二波擴散的觀察窗。
+        companies:
+          - ticker: 3583
+            name: 辛耘
+            role: 半導體設備
+            thesis: 若擴產趨勢延續，設備鏈常會先反映 CAPEX 想像。
+          - ticker: 8028
+            name: 昇陽半導體
+            role: 製程支援
+            thesis: 製程支援與材料處理環節若被帶動，代表整條鏈的資本投入正在擴大。
+          - ticker: 5443
+            name: 均豪
+            role: 自動化設備
+            thesis: 自動化與良率改善需求上升時，這類設備股容易率先出現題材資金。
+
+  - key: cowos
+    title: CoWoS / 先進封裝
+    subtitle: 先進封裝與測試供應鏈
+    description: 以 CoWoS 產能、封測與周邊材料為主軸的追蹤頁。適合拿來和載板、散熱、測試鏈做交叉驗證。
+    report_image: industry_cowos.png
+    tabs:
+      - key: ai
+        label: AI 需求鏈
+        summary: 看 AI 晶片與封裝供給如何對應到台股鏈條。
+      - key: leaders
+        label: 量化焦點
+        summary: 哪些封裝鏈股票已經出現在最新排行。
+    highlights:
+      - 先進封裝通常與載板、散熱、測試同步共振。
+    tab_panels:
+      ai:
+        summary: 先進封裝頁的核心不是多講一遍題材，而是看封裝產能與客戶導入節奏能否真的推動供應鏈股價。
+      leaders:
+        summary: 若封裝題材健康延續，封測與周邊設備鏈應該會陸續出現高分股票。
+    deep_dive:
+      market_question: 市場關心的是先進封裝到底是短期瓶頸，還是中期結構性成長。
+      thesis:
+        - 若 CoWoS 持續擴產，封測與周邊供應鏈的評價通常會被同步拉高。
+        - 封裝鏈常是 AI 需求真實度最容易被交叉驗證的地方之一。
+    lanes:
+      - key: packaging
+        title: 封裝
+        description: 直接承接先進封裝需求的核心節點。
+        companies:
+          - ticker: 2330
+            name: 台積電
+            role: CoWoS
+          - ticker: 3711
+            name: 日月光投控
+            role: 封測
+          - ticker: 6147
+            name: 頎邦
+            role: 封測
+
+  - key: silicon-photonics
+    title: 矽光子
+    subtitle: 高速傳輸與光通訊
+    description: 針對高速互連、資料中心與光通訊鏈的主題頁，適合當作 AI 伺服器頻寬升級的延伸觀察。
+    report_image: industry_silicon_photonics.png
+    tabs:
+      - key: ai
+        label: AI 需求鏈
+        summary: AI 伺服器內部與機櫃間高速互連需求。
+    highlights:
+      - 矽光子題材偏早期，股價波動通常比成熟產業更大。
+    tab_panels:
+      ai:
+        summary: 題材很有想像空間，但要特別區分概念股與真的已經接近商業化的公司。
+    deep_dive:
+      market_question: 高速互連是不是會從故事走到實際商業化，通常比題材熱度更重要。
+    lanes:
+      - key: optical
+        title: 光通訊
+        description: 高速互連、光模組與相關元件供應鏈。
+        companies:
+          - ticker: 3163
+            name: 波若威
+            role: 光通訊
+          - ticker: 4979
+            name: 華星光
+            role: 光模組
+          - ticker: 3081
+            name: 聯亞
+            role: 光元件
+
+  - key: cooling
+    title: 散熱
+    subtitle: AI 伺服器散熱與機櫃鏈
+    description: 從氣冷、液冷到機櫃，對照 AI 伺服器高功耗帶來的散熱升級需求。
+    report_image: industry_cooling.png
+    tabs:
+      - key: ai
+        label: AI 需求鏈
+        summary: 高功耗 GPU 帶來散熱升級需求。
+    highlights:
+      - 散熱鏈與伺服器 ODM、電源與機殼鏈連動明顯。
+    tab_panels:
+      ai:
+        summary: 散熱題材要看的是規格升級是否持續，而不是短線題材輪動本身。
+    deep_dive:
+      market_question: 當 AI 伺服器功耗持續上升，散熱升級能否成為長期趨勢，是這條鏈最重要的命題。
+    lanes:
+      - key: thermal
+        title: 散熱
+        description: 氣冷、液冷與高功耗平台散熱供應鏈。
+        companies:
+          - ticker: 3017
+            name: 奇鋐
+            role: 散熱模組
+          - ticker: 3324
+            name: 雙鴻
+            role: 散熱模組
+          - ticker: 6230
+            name: 尼得科超眾
+            role: 散熱模組
+
+  - key: pcb
+    title: PCB
+    subtitle: 高階板材與伺服器板
+    description: 追蹤高階板材、伺服器板與 HDI 相關受惠鏈，適合和載板、散熱鏈一起交叉觀察。
+    report_image: industry_pcb.png
+    tabs:
+      - key: supply
+        label: 供應鏈
+        summary: 伺服器板與高階材料鏈。
+    highlights:
+      - PCB 通常是 AI 伺服器需求外溢最早能被看見的環節之一。
+    tab_panels:
+      supply:
+        summary: 如果伺服器板與高層數板需求持續升級，PCB 鏈通常會比更後段的組裝鏈更早被看見。
+    deep_dive:
+      market_question: 板材規格升級是否從核心供應鏈外溢到更多板廠，是題材持續性的關鍵。
+    lanes:
+      - key: board
+        title: 板廠
+        description: 高階板材、伺服器板與 HDI 相關公司。
+        companies:
+          - ticker: 2313
+            name: 華通
+            role: PCB / HDI
+          - ticker: 3044
+            name: 健鼎
+            role: 伺服器板
+          - ticker: 4958
+            name: 臻鼎-KY
+            role: PCB

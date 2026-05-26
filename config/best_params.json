@@ -1,18 +1,18 @@
 {
-  "tech_weight": 0.2835130374612246,
-  "vcp_weight": 0.39661923212841954,
-  "bb_weight": 0.3262331305856141,
-  "cta_weight": 0.06524931851980488,
-  "pattern_weight": 0.06756064581435726,
-  "fund_weight": 0.14214625991094682,
-  "chip_weight": 0.11708890084650866,
-  "ml_weight": 0.09966150021991305,
-  "score_threshold": 0.45,
-  "stop_loss_pct": 0.11171697049321881,
-  "risk_per_trade": 0.022371816275018313,
-  "exit_ma_period": 59,
-  "hard_stop": 0.11171697049321881,
-  "ma_period": 59,
+  "tech_weight": 0.20764496511376118,
+  "vcp_weight": 0.23383439608941622,
+  "bb_weight": 0.3142380092608669,
+  "cta_weight": 0.13979017679913902,
+  "pattern_weight": 0.05483018978932083,
+  "fund_weight": 0.3491381622732886,
+  "chip_weight": 0.12738157341911613,
+  "ml_weight": 0.050000176695586644,
+  "score_threshold": 0.47120236894113054,
+  "stop_loss_pct": 0.04877193042805273,
+  "risk_per_trade": 0.02068615104257725,
+  "exit_ma_period": 60,
+  "hard_stop": 0.04877193042805273,
+  "ma_period": 60,
   "model_path": null,
   "optimizer": {
     "name": "sa_nsga2",
@@ -25,14 +25,14 @@
     ],
     "best_metrics": {
       "run_count": 8,
-      "total_return_pct": 12.896580994979962,
-      "sharpe_ratio": 0.43662206939969295,
-      "sortino_ratio": 0.6029361220551538,
-      "risk_adjusted_return": 0.5197790957274233,
-      "max_drawdown_pct": 13.159224647675783,
-      "total_trades": 127,
-      "win_rate_pct": 29.92125984251969,
-      "turnover": 0.019448698315467076
+      "total_return_pct": 22.513526172458505,
+      "sharpe_ratio": 0.41670859939596117,
+      "sortino_ratio": 0.5223818757482408,
+      "risk_adjusted_return": 0.4695452375721009,
+      "max_drawdown_pct": 21.93032496684671,
+      "total_trades": 110,
+      "win_rate_pct": 31.818181818181817,
+      "turnover": 0.016793893129770993
     },
     "pareto_front": [
       {
@@ -343,18 +343,18 @@
       },
       {
         "params": {
-          "tech_weight": 0.42508287474587164,
-          "vcp_weight": 0.21578589291296738,
-          "bb_weight": 0.25884357746180353,
-          "cta_weight": 0.08217564358358613,
-          "pattern_weight": 0.03911182802929255,
-          "fund_weight": 0.16417218430242267,
-          "chip_weight": 0.14163558901150172,
-          "ml_weight": 0.3533358180808556,
-          "score_threshold": 0.8812333197910414,
-          "stop_loss_pct": 0.04333059300117159,
-          "risk_per_trade": 0.017265436861593583,
-          "exit_ma_period": 25
+          "tech_weight": 0.437757119236445,
+          "vcp_weight": 0.18422673939447315,
+          "bb_weight": 0.30546322733824394,
+          "cta_weight": 0.05893193918245188,
+          "pattern_weight": 0.09098593083043086,
+          "fund_weight": 0.23503281621745956,
+          "chip_weight": 0.15485529941540055,
+          "ml_weight": 0.31829910604791006,
+          "score_threshold": 0.8593495626356608,
+          "stop_loss_pct": 0.10490860935544984,
+          "risk_per_trade": 0.016500305787424327,
+          "exit_ma_period": 43
         },
         "fitness": [
           0.0,
@@ -377,18 +377,18 @@
       },
       {
         "params": {
-          "tech_weight": 0.34051522967532644,
-          "vcp_weight": 0.025618347341594287,
-          "bb_weight": 0.31833933347885146,
-          "cta_weight": 0.13697227485276708,
-          "pattern_weight": 0.2061888131064494,
-          "fund_weight": 0.23113488912939928,
-          "chip_weight": 0.13043061339803458,
-          "ml_weight": 0.06523944093482241,
-          "score_threshold": 0.8582453787682944,
-          "stop_loss_pct": 0.10726204102494137,
-          "risk_per_trade": 0.016517997019573735,
-          "exit_ma_period": 43
+          "tech_weight": 0.42508287474587164,
+          "vcp_weight": 0.21578589291296738,
+          "bb_weight": 0.25884357746180353,
+          "cta_weight": 0.08217564358358613,
+          "pattern_weight": 0.03911182802929255,
+          "fund_weight": 0.16417218430242267,
+          "chip_weight": 0.14163558901150172,
+          "ml_weight": 0.3533358180808556,
+          "score_threshold": 0.8812333197910414,
+          "stop_loss_pct": 0.04333059300117159,
+          "risk_per_trade": 0.017265436861593583,
+          "exit_ma_period": 25
         },
         "fitness": [
           0.0,
@@ -479,18 +479,18 @@
       },
       {
         "params": {
-          "tech_weight": 0.09748684389974407,
-          "vcp_weight": 0.024960734530026542,
-          "bb_weight": 0.18273969164659107,
-          "cta_weight": 0.05537310296301169,
-          "pattern_weight": 0.08425905965196838,
-          "fund_weight": 0.1297974012490511,
-          "chip_weight": 0.1324356843138333,
-          "ml_weight": 0.34755497470116603,
-          "score_threshold": 0.8863511157059701,
-          "stop_loss_pct": 0.08471488218853218,
-          "risk_per_trade": 0.009677996097093095,
-          "exit_ma_period": 45
+          "tech_weight": 0.10025533022101456,
+          "vcp_weight": 0.03695634580510325,
+          "bb_weight": 0.10743549078185756,
+          "cta_weight": 0.040766053537520136,
+          "pattern_weight": 0.25,
+          "fund_weight": 0.12043679163719044,
+          "chip_weight": 0.1567394001528348,
+          "ml_weight": 0.3482103634787507,
+          "score_threshold": 0.8953085107036839,
+          "stop_loss_pct": 0.08902568089544943,
+          "risk_per_trade": 0.009193048061894065,
+          "exit_ma_period": 46
         },
         "fitness": [
           0.0,
@@ -581,18 +581,18 @@
       },
       {
         "params": {
-          "tech_weight": 0.221359376931464,
-          "vcp_weight": 0.07684230931553895,
-          "bb_weight": 0.26751821845106916,
-          "cta_weight": 0.1843957133246381,
-          "pattern_weight": 0.23555701711562715,
-          "fund_weight": 0.16956888360002076,
-          "chip_weight": 0.07638643557746677,
-          "ml_weight": 0.55,
-          "score_threshold": 0.7262929441938442,
-          "stop_loss_pct": 0.0868986110830013,
-          "risk_per_trade": 0.016428118559575627,
-          "exit_ma_period": 31
+          "tech_weight": 0.22678185401608503,
+          "vcp_weight": 0.08415498892201911,
+          "bb_weight": 0.20315970406417272,
+          "cta_weight": 0.12543101396834008,
+          "pattern_weight": 0.25,
+          "fund_weight": 0.14645183266787337,
+          "chip_weight": 0.07747886333402018,
+          "ml_weight": 0.5087406307717421,
+          "score_threshold": 0.8136835356041885,
+          "stop_loss_pct": 0.08384388232967903,
+          "risk_per_trade": 0.014023344791677328,
+          "exit_ma_period": 53
         },
         "fitness": [
           0.0,
@@ -615,18 +615,18 @@
       },
       {
         "params": {
-          "tech_weight": 0.09748684389974407,
-          "vcp_weight": 0.024960734530026542,
-          "bb_weight": 0.18273969164659107,
-          "cta_weight": 0.05537310296301169,
-          "pattern_weight": 0.08425905965196838,
-          "fund_weight": 0.08485566693899033,
-          "chip_weight": 0.15725097500167556,
-          "ml_weight": 0.34755497470116603,
-          "score_threshold": 0.9,
-          "stop_loss_pct": 0.08471488218853218,
-          "risk_per_trade": 0.011427940230818846,
-          "exit_ma_period": 45
+          "tech_weight": 0.2846847136349177,
+          "vcp_weight": 0.17729938205852935,
+          "bb_weight": 0.15488265124052603,
+          "cta_weight": 0.1607987803257626,
+          "pattern_weight": 0.10470429635879469,
+          "fund_weight": 0.1312081251686658,
+          "chip_weight": 0.14880821387648033,
+          "ml_weight": 0.3175849091431222,
+          "score_threshold": 0.8730882903078907,
+          "stop_loss_pct": 0.05795454387592162,
+          "risk_per_trade": 0.010735063224054297,
+          "exit_ma_period": 20
         },
         "fitness": [
           0.0,
@@ -649,17 +649,17 @@
       },
       {
         "params": {
-          "tech_weight": 0.3817411914968521,
-          "vcp_weight": 0.25560106921502723,
-          "bb_weight": 0.2041455982431874,
-          "cta_weight": 0.0,
-          "pattern_weight": 0.22803916530280616,
-          "fund_weight": 0.18385588430166844,
-          "chip_weight": 0.05628825542155748,
-          "ml_weight": 0.525503552902922,
-          "score_threshold": 0.7598510655370487,
-          "stop_loss_pct": 0.11629738647810361,
-          "risk_per_trade": 0.021951492512187393,
+          "tech_weight": 0.3791035696325559,
+          "vcp_weight": 0.217100564022111,
+          "bb_weight": 0.23031567337432424,
+          "cta_weight": 0.10325801323032291,
+          "pattern_weight": 0.0,
+          "fund_weight": 0.1723804134667547,
+          "chip_weight": 0.07545875540394673,
+          "ml_weight": 0.5001172668315432,
+          "score_threshold": 0.7660364353905184,
+          "stop_loss_pct": 0.12,
+          "risk_per_trade": 0.00886651851021765,
           "exit_ma_period": 26
         },
         "fitness": [
@@ -683,18 +683,18 @@
       },
       {
         "params": {
-          "tech_weight": 0.12805670998179802,
-          "vcp_weight": 0.2575842445273928,
-          "bb_weight": 0.1510982908137811,
-          "cta_weight": 0.14715902830866928,
-          "pattern_weight": 0.11685618935694361,
-          "fund_weight": 0.25719762453928896,
-          "chip_weight": 0.20642650404002638,
-          "ml_weight": 0.30304425901403853,
-          "score_threshold": 0.7299250575705944,
-          "stop_loss_pct": 0.06729412900746401,
-          "risk_per_trade": 0.023890189170277885,
-          "exit_ma_period": 22
+          "tech_weight": 0.34938686362950444,
+          "vcp_weight": 0.1948536880960164,
+          "bb_weight": 0.06622257810937704,
+          "cta_weight": 0.17467003147232918,
+          "pattern_weight": 0.06389850221604129,
+          "fund_weight": 0.05264479598646378,
+          "chip_weight": 0.11868970674102033,
+          "ml_weight": 0.1221268541851834,
+          "score_threshold": 0.773896089535782,
+          "stop_loss_pct": 0.04692921512504477,
+          "risk_per_trade": 0.02502304568091076,
+          "exit_ma_period": 60
         },
         "fitness": [
           0.0,
@@ -717,18 +717,18 @@
       },
       {
         "params": {
-          "tech_weight": 0.37515075207451765,
-          "vcp_weight": 0.0,
-          "bb_weight": 0.2761499783399216,
-          "cta_weight": 0.060966056870966644,
-          "pattern_weight": 0.1077252096275548,
-          "fund_weight": 0.22287430819905246,
-          "chip_weight": 0.07706375723875525,
-          "ml_weight": 0.23412915567614176,
-          "score_threshold": 0.9,
-          "stop_loss_pct": 0.04096942758119371,
-          "risk_per_trade": 0.014588997137784342,
-          "exit_ma_period": 27
+          "tech_weight": 0.4316820034400345,
+          "vcp_weight": 0.3521719940188413,
+          "bb_weight": 0.10699036924823985,
+          "cta_weight": 0.07620444058651707,
+          "pattern_weight": 0.098152857037222,
+          "fund_weight": 0.3375340226960198,
+          "chip_weight": 0.05131859064365599,
+          "ml_weight": 0.25168327470239427,
+          "score_threshold": 0.8973189367921606,
+          "stop_loss_pct": 0.044286952354185935,
+          "risk_per_trade": 0.014496468440153006,
+          "exit_ma_period": 28
         },
         "fitness": [
           0.0,
@@ -751,18 +751,86 @@
       },
       {
         "params": {
-          "tech_weight": 0.12154035303379274,
-          "vcp_weight": 0.25963376466126,
-          "bb_weight": 0.2000365576457545,
-          "cta_weight": 0.1781140402989247,
-          "pattern_weight": 0.07333300291870595,
+          "tech_weight": 0.10440207077698316,
+          "vcp_weight": 0.27579015414943264,
+          "bb_weight": 0.31393227124411954,
+          "cta_weight": 0.14601701907787343,
+          "pattern_weight": 0.07043347038186391,
+          "fund_weight": 0.31036623726111967,
+          "chip_weight": 0.21056300579313494,
+          "ml_weight": 0.4249275882665255,
+          "score_threshold": 0.8292538318193263,
+          "stop_loss_pct": 0.07381691788490108,
+          "risk_per_trade": 0.02104572761431075,
+          "exit_ma_period": 29
+        },
+        "fitness": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "metrics": {
+          "run_count": 8,
+          "total_return_pct": 0.0,
+          "sharpe_ratio": 0.0,
+          "sortino_ratio": 0.0,
+          "risk_adjusted_return": 0.0,
+          "max_drawdown_pct": 0.0,
+          "total_trades": 0,
+          "win_rate_pct": 0.0,
+          "turnover": 0.0
+        },
+        "balanced_selection_score": 0.0
+      },
+      {
+        "params": {
+          "tech_weight": 0.2985159424774157,
+          "vcp_weight": 0.25378757962445475,
+          "bb_weight": 0.04882892126381667,
+          "cta_weight": 0.13110731151294053,
+          "pattern_weight": 0.11238444495143186,
+          "fund_weight": 0.2823584088766312,
+          "chip_weight": 0.11322492270777548,
+          "ml_weight": 0.1604889617943096,
+          "score_threshold": 0.800895644601551,
+          "stop_loss_pct": 0.05207872047930013,
+          "risk_per_trade": 0.025495672496129315,
+          "exit_ma_period": 35
+        },
+        "fitness": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "metrics": {
+          "run_count": 8,
+          "total_return_pct": 0.0,
+          "sharpe_ratio": 0.0,
+          "sortino_ratio": 0.0,
+          "risk_adjusted_return": 0.0,
+          "max_drawdown_pct": 0.0,
+          "total_trades": 0,
+          "win_rate_pct": 0.0,
+          "turnover": 0.0
+        },
+        "balanced_selection_score": 0.0
+      },
+      {
+        "params": {
+          "tech_weight": 0.10530592644497619,
+          "vcp_weight": 0.23879491159525737,
+          "bb_weight": 0.0,
+          "cta_weight": 0.15771795142138811,
+          "pattern_weight": 0.06547227390537255,
           "fund_weight": 0.35,
-          "chip_weight": 0.1721427051312251,
-          "ml_weight": 0.3241301478853303,
-          "score_threshold": 0.8204165705128416,
-          "stop_loss_pct": 0.05291168928067855,
-          "risk_per_trade": 0.023290607923332422,
-          "exit_ma_period": 42
+          "chip_weight": 0.1137858949088113,
+          "ml_weight": 0.11374373409223179,
+          "score_threshold": 0.7310299741823942,
+          "stop_loss_pct": 0.05559714085699009,
+          "risk_per_trade": 0.02181500103262491,
+          "exit_ma_period": 41
         },
         "fitness": [
           0.0,
@@ -785,205 +853,171 @@
       },
       {
         "params": {
-          "tech_weight": 0.1893306219128148,
-          "vcp_weight": 0.20024216040483223,
-          "bb_weight": 0.17008701922682073,
-          "cta_weight": 0.0861335924385511,
-          "pattern_weight": 0.1194033957197263,
-          "fund_weight": 0.2541757192747496,
-          "chip_weight": 0.24337670064566835,
-          "ml_weight": 0.15466048211094957,
-          "score_threshold": 0.7241429871457733,
-          "stop_loss_pct": 0.10218335544742216,
-          "risk_per_trade": 0.02481974276976739,
-          "exit_ma_period": 40
-        },
-        "fitness": [
-          0.0,
-          0.0,
-          0.0,
-          0.0
-        ],
-        "metrics": {
-          "run_count": 8,
-          "total_return_pct": 0.0,
-          "sharpe_ratio": 0.0,
-          "sortino_ratio": 0.0,
-          "risk_adjusted_return": 0.0,
-          "max_drawdown_pct": 0.0,
-          "total_trades": 0,
-          "win_rate_pct": 0.0,
-          "turnover": 0.0
-        },
-        "balanced_selection_score": 0.0
-      },
-      {
-        "params": {
-          "tech_weight": 0.42916328158485056,
-          "vcp_weight": 0.15093127332469078,
-          "bb_weight": 0.11586560954074082,
-          "cta_weight": 0.0646014795009519,
-          "pattern_weight": 0.16949111005731285,
-          "fund_weight": 0.35,
-          "chip_weight": 0.08318582974289847,
-          "ml_weight": 0.5259360403092959,
-          "score_threshold": 0.7866585387841956,
-          "stop_loss_pct": 0.04,
-          "risk_per_trade": 0.0167892429795509,
-          "exit_ma_period": 25
-        },
-        "fitness": [
-          0.0,
-          0.0,
-          0.0,
-          0.0
-        ],
-        "metrics": {
-          "run_count": 8,
-          "total_return_pct": 0.0,
-          "sharpe_ratio": 0.0,
-          "sortino_ratio": 0.0,
-          "risk_adjusted_return": 0.0,
-          "max_drawdown_pct": 0.0,
-          "total_trades": 0,
-          "win_rate_pct": 0.0,
-          "turnover": 0.0
-        },
-        "balanced_selection_score": 0.0
-      },
-      {
-        "params": {
-          "tech_weight": 0.10773102622770606,
-          "vcp_weight": 0.3685555588802589,
-          "bb_weight": 0.07233413762921823,
-          "cta_weight": 0.16482409454680902,
-          "pattern_weight": 0.09191467899450378,
-          "fund_weight": 0.32768056451909783,
-          "chip_weight": 0.23906104515710314,
-          "ml_weight": 0.24150944021299417,
-          "score_threshold": 0.8352032295384604,
-          "stop_loss_pct": 0.04,
-          "risk_per_trade": 0.018445852978223248,
-          "exit_ma_period": 59
-        },
-        "fitness": [
-          0.0,
-          0.0,
-          0.0,
-          0.0
-        ],
-        "metrics": {
-          "run_count": 8,
-          "total_return_pct": 0.0,
-          "sharpe_ratio": 0.0,
-          "sortino_ratio": 0.0,
-          "risk_adjusted_return": 0.0,
-          "max_drawdown_pct": 0.0,
-          "total_trades": 0,
-          "win_rate_pct": 0.0,
-          "turnover": 0.0
-        },
-        "balanced_selection_score": 0.0
-      },
-      {
-        "params": {
-          "tech_weight": 0.6312256189814953,
-          "vcp_weight": 0.2316721163265025,
-          "bb_weight": 0.18976832048099598,
-          "cta_weight": 0.2617914461326724,
+          "tech_weight": 0.5920923829729074,
+          "vcp_weight": 0.19877160569210856,
+          "bb_weight": 0.18816405444302012,
+          "cta_weight": 0.11875963125991898,
           "pattern_weight": 0.0,
-          "fund_weight": 0.2034900902205369,
-          "chip_weight": 0.14421976791189245,
-          "ml_weight": 0.468995940626557,
-          "score_threshold": 0.593252036867092,
-          "stop_loss_pct": 0.11686231226195601,
-          "risk_per_trade": 0.0070027866310146715,
-          "exit_ma_period": 21
+          "fund_weight": 0.2563692990066543,
+          "chip_weight": 0.09100605655924415,
+          "ml_weight": 0.38023273522696754,
+          "score_threshold": 0.5418635402792191,
+          "stop_loss_pct": 0.112145012891595,
+          "risk_per_trade": 0.006564698959237142,
+          "exit_ma_period": 20
         },
         "fitness": [
-          0.911874015042692,
-          0.2606121256861085,
-          1.4506172929279963,
-          0.0026033690658499235
+          1.2042025092501754,
+          0.30165411769606976,
+          2.253589665953532,
+          0.011297709923664122
         ],
         "metrics": {
           "run_count": 8,
-          "total_return_pct": 0.911874015042692,
-          "sharpe_ratio": 0.3440298120804212,
-          "sortino_ratio": 0.17719443929179582,
-          "risk_adjusted_return": 0.2606121256861085,
-          "max_drawdown_pct": 1.4506172929279963,
-          "total_trades": 17,
-          "win_rate_pct": 47.05882352941176,
-          "turnover": 0.0026033690658499235
+          "total_return_pct": 1.2042025092501754,
+          "sharpe_ratio": 0.3578389785225061,
+          "sortino_ratio": 0.24546925686963342,
+          "risk_adjusted_return": 0.30165411769606976,
+          "max_drawdown_pct": 2.253589665953532,
+          "total_trades": 74,
+          "win_rate_pct": 33.78378378378378,
+          "turnover": 0.011297709923664122
         },
         "balanced_selection_score": 0.0
       },
       {
         "params": {
-          "tech_weight": 0.65,
-          "vcp_weight": 0.2510685882097545,
-          "bb_weight": 0.18661532915299042,
-          "cta_weight": 0.14620534615702446,
-          "pattern_weight": 0.0,
-          "fund_weight": 0.3495025257318636,
-          "chip_weight": 0.2066144461634532,
-          "ml_weight": 0.4750300825708439,
-          "score_threshold": 0.623303179098942,
-          "stop_loss_pct": 0.08913827974429978,
-          "risk_per_trade": 0.008468864503695018,
-          "exit_ma_period": 34
+          "tech_weight": 0.507612893752675,
+          "vcp_weight": 0.2369539045821127,
+          "bb_weight": 0.11802664217742212,
+          "cta_weight": 0.14159702441889083,
+          "pattern_weight": 0.18898336225069468,
+          "fund_weight": 0.3472476508548118,
+          "chip_weight": 0.0,
+          "ml_weight": 0.40069766232775195,
+          "score_threshold": 0.5643630885692108,
+          "stop_loss_pct": 0.08132925885259372,
+          "risk_per_trade": 0.006658118293545574,
+          "exit_ma_period": 13
         },
         "fitness": [
-          0.1928606679765521,
-          0.0010166796663358922,
-          2.5784414384251657,
-          0.0009188361408882082
+          0.5351452034073889,
+          0.13114196767167413,
+          2.432928424013634,
+          0.00549618320610687
         ],
         "metrics": {
           "run_count": 8,
-          "total_return_pct": 0.1928606679765521,
-          "sharpe_ratio": -0.02403627988391372,
-          "sortino_ratio": 0.026069639216585505,
-          "risk_adjusted_return": 0.0010166796663358922,
-          "max_drawdown_pct": 2.5784414384251657,
-          "total_trades": 6,
+          "total_return_pct": 0.5351452034073889,
+          "sharpe_ratio": 0.17204327047315598,
+          "sortino_ratio": 0.09024066487019229,
+          "risk_adjusted_return": 0.13114196767167413,
+          "max_drawdown_pct": 2.432928424013634,
+          "total_trades": 36,
+          "win_rate_pct": 44.44444444444444,
+          "turnover": 0.00549618320610687
+        },
+        "balanced_selection_score": 0.0
+      },
+      {
+        "params": {
+          "tech_weight": 0.1357984532722748,
+          "vcp_weight": 0.27578329356467624,
+          "bb_weight": 0.17552812361150882,
+          "cta_weight": 0.13621375763221266,
+          "pattern_weight": 0.15780792035449215,
+          "fund_weight": 0.23125875472943663,
+          "chip_weight": 0.19261920580976438,
+          "ml_weight": 0.43491380766033105,
+          "score_threshold": 0.5847822453018077,
+          "stop_loss_pct": 0.07169589913702129,
+          "risk_per_trade": 0.005832794394020542,
+          "exit_ma_period": 29
+        },
+        "fitness": [
+          1.240980780636411,
+          0.25237668380750367,
+          2.5517444349007414,
+          0.0032061068702290076
+        ],
+        "metrics": {
+          "run_count": 8,
+          "total_return_pct": 1.240980780636411,
+          "sharpe_ratio": 0.31670763258612955,
+          "sortino_ratio": 0.18804573502887778,
+          "risk_adjusted_return": 0.25237668380750367,
+          "max_drawdown_pct": 2.5517444349007414,
+          "total_trades": 21,
+          "win_rate_pct": 47.61904761904761,
+          "turnover": 0.0032061068702290076
+        },
+        "balanced_selection_score": 0.0
+      },
+      {
+        "params": {
+          "tech_weight": 0.24904333500373654,
+          "vcp_weight": 0.34167466297479154,
+          "bb_weight": 0.21401851267705735,
+          "cta_weight": 0.11586189661599536,
+          "pattern_weight": 0.11671155831420633,
+          "fund_weight": 0.2981238700432908,
+          "chip_weight": 0.11226913303243963,
+          "ml_weight": 0.13585132001415312,
+          "score_threshold": 0.6552226430264969,
+          "stop_loss_pct": 0.09000631487927867,
+          "risk_per_trade": 0.01756832782747799,
+          "exit_ma_period": 43
+        },
+        "fitness": [
+          0.18091825352123808,
+          -0.015902055280456788,
+          3.014945065067532,
+          0.0006106870229007634
+        ],
+        "metrics": {
+          "run_count": 8,
+          "total_return_pct": 0.18091825352123808,
+          "sharpe_ratio": -0.046279155785886955,
+          "sortino_ratio": 0.014475045224973388,
+          "risk_adjusted_return": -0.015902055280456788,
+          "max_drawdown_pct": 3.014945065067532,
+          "total_trades": 4,
           "win_rate_pct": 50.0,
-          "turnover": 0.0009188361408882082
+          "turnover": 0.0006106870229007634
         },
         "balanced_selection_score": 0.0
       },
       {
         "params": {
-          "tech_weight": 0.36046464441050124,
-          "vcp_weight": 0.24219134478971516,
-          "bb_weight": 0.19792270045334887,
-          "cta_weight": 0.2448834868506263,
-          "pattern_weight": 0.1107083662044874,
-          "fund_weight": 0.015808728201138135,
-          "chip_weight": 0.06983663170566927,
-          "ml_weight": 0.5382251529089289,
-          "score_threshold": 0.6331177425052146,
-          "stop_loss_pct": 0.05840042737227635,
-          "risk_per_trade": 0.00894866625134462,
-          "exit_ma_period": 22
+          "tech_weight": 0.07250329618013213,
+          "vcp_weight": 0.12211087587133455,
+          "bb_weight": 0.21702172076987472,
+          "cta_weight": 0.0,
+          "pattern_weight": 0.029460323182337846,
+          "fund_weight": 0.18063476533558864,
+          "chip_weight": 0.11625087168795027,
+          "ml_weight": 0.19283327024958513,
+          "score_threshold": 0.48622906863974136,
+          "stop_loss_pct": 0.08589594799253848,
+          "risk_per_trade": 0.005,
+          "exit_ma_period": 19
         },
         "fitness": [
-          0.255413875369602,
-          -0.015242523432910732,
-          3.0153847390690918,
-          0.0010719754977029097
+          2.2007685119697196,
+          0.44456227523679326,
+          3.13880218905771,
+          0.03969465648854962
         ],
         "metrics": {
           "run_count": 8,
-          "total_return_pct": 0.255413875369602,
-          "sharpe_ratio": -0.05117640550258443,
-          "sortino_ratio": 0.02069135863676294,
-          "risk_adjusted_return": -0.015242523432910732,
-          "max_drawdown_pct": 3.0153847390690918,
-          "total_trades": 7,
-          "win_rate_pct": 28.57142857142857,
-          "turnover": 0.0010719754977029097
+          "total_return_pct": 2.2007685119697196,
+          "sharpe_ratio": 0.44560382566111056,
+          "sortino_ratio": 0.44352072481247595,
+          "risk_adjusted_return": 0.44456227523679326,
+          "max_drawdown_pct": 3.13880218905771,
+          "total_trades": 260,
+          "win_rate_pct": 35.76923076923077,
+          "turnover": 0.03969465648854962
         },
         "balanced_selection_score": 0.0
       },
@@ -1003,157 +1037,89 @@
           "exit_ma_period": 21
         },
         "fitness": [
-          1.603861705137946,
-          0.3548958139993169,
-          3.3437129320485544,
-          0.018223583460949464
+          1.517364039180967,
+          0.3340371534168266,
+          3.3437114628717577,
+          0.0183206106870229
         ],
         "metrics": {
           "run_count": 8,
-          "total_return_pct": 1.603861705137946,
-          "sharpe_ratio": 0.3854533437201193,
-          "sortino_ratio": 0.3243382842785145,
-          "risk_adjusted_return": 0.3548958139993169,
-          "max_drawdown_pct": 3.3437129320485544,
-          "total_trades": 119,
-          "win_rate_pct": 27.73109243697479,
-          "turnover": 0.018223583460949464
+          "total_return_pct": 1.517364039180967,
+          "sharpe_ratio": 0.361619148874196,
+          "sortino_ratio": 0.3064551579594572,
+          "risk_adjusted_return": 0.3340371534168266,
+          "max_drawdown_pct": 3.3437114628717577,
+          "total_trades": 120,
+          "win_rate_pct": 26.666666666666668,
+          "turnover": 0.0183206106870229
         },
         "balanced_selection_score": 0.0
       },
       {
         "params": {
-          "tech_weight": 0.65,
-          "vcp_weight": 0.2244555069959157,
-          "bb_weight": 0.19270949832147868,
-          "cta_weight": 0.0,
-          "pattern_weight": 0.14622009417533108,
-          "fund_weight": 0.18948783157370386,
-          "chip_weight": 0.11086603547346449,
-          "ml_weight": 0.5360020967903161,
-          "score_threshold": 0.5129522975679566,
-          "stop_loss_pct": 0.09334874544986727,
-          "risk_per_trade": 0.005,
-          "exit_ma_period": 37
-        },
-        "fitness": [
-          1.3399426118096622,
-          0.2865594497115527,
-          3.7920694563108572,
-          0.017457886676875957
-        ],
-        "metrics": {
-          "run_count": 8,
-          "total_return_pct": 1.3399426118096622,
-          "sharpe_ratio": 0.2765096918900306,
-          "sortino_ratio": 0.2966092075330749,
-          "risk_adjusted_return": 0.2865594497115527,
-          "max_drawdown_pct": 3.7920694563108572,
-          "total_trades": 114,
-          "win_rate_pct": 27.192982456140353,
-          "turnover": 0.017457886676875957
-        },
-        "balanced_selection_score": 0.0
-      },
-      {
-        "params": {
-          "tech_weight": 0.48020830862301805,
-          "vcp_weight": 0.13613445482201383,
-          "bb_weight": 0.1477661897448259,
-          "cta_weight": 0.2528202189787169,
+          "tech_weight": 0.5920923829729074,
+          "vcp_weight": 0.2507184908443132,
+          "bb_weight": 0.18816405444302012,
+          "cta_weight": 0.11875963125991898,
           "pattern_weight": 0.0,
-          "fund_weight": 0.09547168549542452,
-          "chip_weight": 0.13579644555695583,
-          "ml_weight": 0.4123278775256652,
-          "score_threshold": 0.5093264147360463,
-          "stop_loss_pct": 0.060851769882172266,
-          "risk_per_trade": 0.005,
-          "exit_ma_period": 18
+          "fund_weight": 0.2806747299792646,
+          "chip_weight": 0.09100605655924415,
+          "ml_weight": 0.38023273522696754,
+          "score_threshold": 0.4672922301187168,
+          "stop_loss_pct": 0.11586393266113142,
+          "risk_per_trade": 0.006564698959237142,
+          "exit_ma_period": 20
         },
         "fitness": [
-          2.412572205056994,
-          0.4112214865196553,
-          4.093956460019234,
-          0.028024502297090352
+          2.3137407170332898,
+          0.42185802099859615,
+          3.8064459173397758,
+          0.044274809160305344
         ],
         "metrics": {
           "run_count": 8,
-          "total_return_pct": 2.412572205056994,
-          "sharpe_ratio": 0.43619176472169363,
-          "sortino_ratio": 0.38625120831761695,
-          "risk_adjusted_return": 0.4112214865196553,
-          "max_drawdown_pct": 4.093956460019234,
-          "total_trades": 183,
-          "win_rate_pct": 36.0655737704918,
-          "turnover": 0.028024502297090352
+          "total_return_pct": 2.3137407170332898,
+          "sharpe_ratio": 0.4023168611286735,
+          "sortino_ratio": 0.4413991808685187,
+          "risk_adjusted_return": 0.42185802099859615,
+          "max_drawdown_pct": 3.8064459173397758,
+          "total_trades": 290,
+          "win_rate_pct": 31.724137931034484,
+          "turnover": 0.044274809160305344
         },
         "balanced_selection_score": 0.0
       },
       {
         "params": {
-          "tech_weight": 0.569074788957495,
-          "vcp_weight": 0.2120143077967202,
-          "bb_weight": 0.22378703677974865,
-          "cta_weight": 0.14462065947571281,
-          "pattern_weight": 0.13397618837927408,
-          "fund_weight": 0.35,
-          "chip_weight": 0.08136461933999506,
-          "ml_weight": 0.2551814413974803,
-          "score_threshold": 0.46890139426115923,
-          "stop_loss_pct": 0.12,
-          "risk_per_trade": 0.007804117676102511,
-          "exit_ma_period": 31
+          "tech_weight": 0.10300774609870104,
+          "vcp_weight": 0.12211087587133455,
+          "bb_weight": 0.22537094354613652,
+          "cta_weight": 0.0,
+          "pattern_weight": 0.0,
+          "fund_weight": 0.18063476533558864,
+          "chip_weight": 0.11625087168795027,
+          "ml_weight": 0.19283327024958513,
+          "score_threshold": 0.48622906863974136,
+          "stop_loss_pct": 0.08589594799253848,
+          "risk_per_trade": 0.005874357929583449,
+          "exit_ma_period": 24
         },
         "fitness": [
-          2.8347760911884237,
-          0.43464069708288433,
-          4.096191646856908,
-          0.03231240428790199
+          3.0785511007311555,
+          0.4806601187822686,
+          4.175147470814862,
+          0.03404580152671756
         ],
         "metrics": {
           "run_count": 8,
-          "total_return_pct": 2.8347760911884237,
-          "sharpe_ratio": 0.4126495993470205,
-          "sortino_ratio": 0.45663179481874816,
-          "risk_adjusted_return": 0.43464069708288433,
-          "max_drawdown_pct": 4.096191646856908,
-          "total_trades": 211,
-          "win_rate_pct": 28.90995260663507,
-          "turnover": 0.03231240428790199
-        },
-        "balanced_selection_score": 0.0
-      },
-      {
-        "params": {
-          "tech_weight": 0.24166585498447168,
-          "vcp_weight": 0.1627518400109688,
-          "bb_weight": 0.2323349842416264,
-          "cta_weight": 0.011462437900275305,
-          "pattern_weight": 0.21571052133848237,
-          "fund_weight": 0.1002389017961132,
-          "chip_weight": 0.1795356036500041,
-          "ml_weight": 0.3122760476816148,
-          "score_threshold": 0.519645393982802,
-          "stop_loss_pct": 0.061588901769011994,
-          "risk_per_trade": 0.005139274200563383,
-          "exit_ma_period": 26
-        },
-        "fitness": [
-          2.4113568450606095,
-          0.3687892411905907,
-          4.360953858721244,
-          0.017151607963246555
-        ],
-        "metrics": {
-          "run_count": 8,
-          "total_return_pct": 2.4113568450606095,
-          "sharpe_ratio": 0.3846126341121351,
-          "sortino_ratio": 0.3529658482690463,
-          "risk_adjusted_return": 0.3687892411905907,
-          "max_drawdown_pct": 4.360953858721244,
-          "total_trades": 112,
-          "win_rate_pct": 27.67857142857143,
-          "turnover": 0.017151607963246555
+          "total_return_pct": 3.0785511007311555,
+          "sharpe_ratio": 0.4584865783526332,
+          "sortino_ratio": 0.5028336592119039,
+          "risk_adjusted_return": 0.4806601187822686,
+          "max_drawdown_pct": 4.175147470814862,
+          "total_trades": 223,
+          "win_rate_pct": 34.08071748878923,
+          "turnover": 0.03404580152671756
         },
         "balanced_selection_score": 0.0
       },
@@ -1173,21 +1139,89 @@
           "exit_ma_period": 34
         },
         "fitness": [
-          2.406970355082878,
-          0.36381858221211294,
-          4.521851252894555,
-          0.008269525267993875
+          2.4071467648776492,
+          0.36307534644841943,
+          4.521850076319847,
+          0.008244274809160306
         ],
         "metrics": {
           "run_count": 8,
-          "total_return_pct": 2.406970355082878,
-          "sharpe_ratio": 0.4027555519182071,
-          "sortino_ratio": 0.3248816125060188,
-          "risk_adjusted_return": 0.36381858221211294,
-          "max_drawdown_pct": 4.521851252894555,
+          "total_return_pct": 2.4071467648776492,
+          "sharpe_ratio": 0.40219175212674585,
+          "sortino_ratio": 0.32395894077009313,
+          "risk_adjusted_return": 0.36307534644841943,
+          "max_drawdown_pct": 4.521850076319847,
           "total_trades": 54,
           "win_rate_pct": 35.18518518518518,
-          "turnover": 0.008269525267993875
+          "turnover": 0.008244274809160306
+        },
+        "balanced_selection_score": 0.0
+      },
+      {
+        "params": {
+          "tech_weight": 0.65,
+          "vcp_weight": 0.1978174991154274,
+          "bb_weight": 0.034475696105579934,
+          "cta_weight": 0.11563021416868935,
+          "pattern_weight": 0.04087172647039633,
+          "fund_weight": 0.2830572404476836,
+          "chip_weight": 0.08288136867352641,
+          "ml_weight": 0.14942957216465969,
+          "score_threshold": 0.543027843951958,
+          "stop_loss_pct": 0.11331846182711174,
+          "risk_per_trade": 0.013518727673152136,
+          "exit_ma_period": 47
+        },
+        "fitness": [
+          3.48517461201157,
+          0.35614892042908786,
+          4.728942027396427,
+          0.008091603053435115
+        ],
+        "metrics": {
+          "run_count": 8,
+          "total_return_pct": 3.48517461201157,
+          "sharpe_ratio": 0.3770223748395566,
+          "sortino_ratio": 0.335275466018619,
+          "risk_adjusted_return": 0.35614892042908786,
+          "max_drawdown_pct": 4.728942027396427,
+          "total_trades": 53,
+          "win_rate_pct": 33.9622641509434,
+          "turnover": 0.008091603053435115
+        },
+        "balanced_selection_score": 0.0
+      },
+      {
+        "params": {
+          "tech_weight": 0.3758013249581038,
+          "vcp_weight": 0.1835672991875259,
+          "bb_weight": 0.20084312551473138,
+          "cta_weight": 0.0550648631677408,
+          "pattern_weight": 0.012564565959740079,
+          "fund_weight": 0.16307518632744725,
+          "chip_weight": 0.1764884952433503,
+          "ml_weight": 0.3967132532281082,
+          "score_threshold": 0.45,
+          "stop_loss_pct": 0.09786410855244435,
+          "risk_per_trade": 0.005453706744684448,
+          "exit_ma_period": 23
+        },
+        "fitness": [
+          3.3673836475665,
+          0.5340333809556116,
+          4.8220102742747155,
+          0.04717557251908397
+        ],
+        "metrics": {
+          "run_count": 8,
+          "total_return_pct": 3.3673836475665,
+          "sharpe_ratio": 0.46972042741216247,
+          "sortino_ratio": 0.5983463344990607,
+          "risk_adjusted_return": 0.5340333809556116,
+          "max_drawdown_pct": 4.8220102742747155,
+          "total_trades": 309,
+          "win_rate_pct": 31.3915857605178,
+          "turnover": 0.04717557251908397
         },
         "balanced_selection_score": 0.0
       },
@@ -1207,21 +1241,55 @@
           "exit_ma_period": 19
         },
         "fitness": [
-          2.911307174124489,
-          0.25564697982519824,
-          5.031208030940035,
-          0.004747320061255743
+          2.911339620395434,
+          0.25511592261545013,
+          5.031205901704279,
+          0.004732824427480916
         ],
         "metrics": {
           "run_count": 8,
-          "total_return_pct": 2.911307174124489,
-          "sharpe_ratio": 0.33298784305506784,
-          "sortino_ratio": 0.17830611659532855,
-          "risk_adjusted_return": 0.25564697982519824,
-          "max_drawdown_pct": 5.031208030940035,
+          "total_return_pct": 2.911339620395434,
+          "sharpe_ratio": 0.33247286654222374,
+          "sortino_ratio": 0.17775897868867652,
+          "risk_adjusted_return": 0.25511592261545013,
+          "max_drawdown_pct": 5.031205901704279,
           "total_trades": 31,
           "win_rate_pct": 48.38709677419355,
-          "turnover": 0.004747320061255743
+          "turnover": 0.004732824427480916
+        },
+        "balanced_selection_score": 0.0
+      },
+      {
+        "params": {
+          "tech_weight": 0.2258572974042645,
+          "vcp_weight": 0.4,
+          "bb_weight": 0.24841990445827103,
+          "cta_weight": 0.018152770725356298,
+          "pattern_weight": 0.04572624580707507,
+          "fund_weight": 0.14921625177421108,
+          "chip_weight": 0.058216043321441265,
+          "ml_weight": 0.15664527635094072,
+          "score_threshold": 0.6570507812082501,
+          "stop_loss_pct": 0.051579841955096434,
+          "risk_per_trade": 0.020513476022745135,
+          "exit_ma_period": 48
+        },
+        "fitness": [
+          0.5934646633060092,
+          -0.03238090357440968,
+          5.527588698202388,
+          0.0006106870229007634
+        ],
+        "metrics": {
+          "run_count": 8,
+          "total_return_pct": 0.5934646633060092,
+          "sharpe_ratio": -0.08172344993276803,
+          "sortino_ratio": 0.01696164278394865,
+          "risk_adjusted_return": -0.03238090357440968,
+          "max_drawdown_pct": 5.527588698202388,
+          "total_trades": 4,
+          "win_rate_pct": 50.0,
+          "turnover": 0.0006106870229007634
         },
         "balanced_selection_score": 0.0
       },
@@ -1241,55 +1309,21 @@
           "exit_ma_period": 46
         },
         "fitness": [
-          2.518573885060005,
-          0.24905954700829092,
-          6.213259371430523,
-          0.0038284839203675345
+          2.5185687480337227,
+          0.2485015342686223,
+          6.213258199004334,
+          0.003816793893129771
         ],
         "metrics": {
           "run_count": 8,
-          "total_return_pct": 2.518573885060005,
-          "sharpe_ratio": 0.28866214781754157,
-          "sortino_ratio": 0.20945694619904032,
-          "risk_adjusted_return": 0.24905954700829092,
-          "max_drawdown_pct": 6.213259371430523,
+          "total_return_pct": 2.5185687480337227,
+          "sharpe_ratio": 0.28819417820188686,
+          "sortino_ratio": 0.2088088903353577,
+          "risk_adjusted_return": 0.2485015342686223,
+          "max_drawdown_pct": 6.213258199004334,
           "total_trades": 25,
           "win_rate_pct": 40.0,
-          "turnover": 0.0038284839203675345
-        },
-        "balanced_selection_score": 0.0
-      },
-      {
-        "params": {
-          "tech_weight": 0.65,
-          "vcp_weight": 0.2555464454316186,
-          "bb_weight": 0.15716747864682032,
-          "cta_weight": 0.1845191805039659,
-          "pattern_weight": 0.01930695340260586,
-          "fund_weight": 0.1533845249303726,
-          "chip_weight": 0.06762865059206087,
-          "ml_weight": 0.2573915626860922,
-          "score_threshold": 0.6068825782927261,
-          "stop_loss_pct": 0.05572919065047048,
-          "risk_per_trade": 0.014868550939206554,
-          "exit_ma_period": 20
-        },
-        "fitness": [
-          2.536477405584921,
-          0.18924544906331614,
-          6.226139661416098,
-          0.002450229709035222
-        ],
-        "metrics": {
-          "run_count": 8,
-          "total_return_pct": 2.536477405584921,
-          "sharpe_ratio": 0.26175921329119195,
-          "sortino_ratio": 0.11673168483544033,
-          "risk_adjusted_return": 0.18924544906331614,
-          "max_drawdown_pct": 6.226139661416098,
-          "total_trades": 16,
-          "win_rate_pct": 50.0,
-          "turnover": 0.002450229709035222
+          "turnover": 0.003816793893129771
         },
         "balanced_selection_score": 0.0
       },
@@ -1309,21 +1343,21 @@
           "exit_ma_period": 52
         },
         "fitness": [
-          1.278214617599971,
-          -0.009951497505249991,
-          6.243724665479008,
-          0.0004594180704441041
+          1.2782151134666546,
+          -0.010030120718235405,
+          6.243724950930857,
+          0.0004580152671755725
         ],
         "metrics": {
           "run_count": 8,
-          "total_return_pct": 1.278214617599971,
-          "sharpe_ratio": -0.05697950578849497,
-          "sortino_ratio": 0.03707651077799499,
-          "risk_adjusted_return": -0.009951497505249991,
-          "max_drawdown_pct": 6.243724665479008,
+          "total_return_pct": 1.2782151134666546,
+          "sharpe_ratio": -0.05696530693541996,
+          "sortino_ratio": 0.03690506549894915,
+          "risk_adjusted_return": -0.010030120718235405,
+          "max_drawdown_pct": 6.243724950930857,
           "total_trades": 3,
           "win_rate_pct": 33.33333333333333,
-          "turnover": 0.0004594180704441041
+          "turnover": 0.0004580152671755725
         },
         "balanced_selection_score": 0.0
       },
@@ -1343,123 +1377,123 @@
           "exit_ma_period": 33
         },
         "fitness": [
-          4.2281459702310125,
-          0.4516537726749359,
-          6.382771287440021,
-          0.036753445635528334
+          4.283604308507069,
+          0.43178887850592607,
+          6.382773181683009,
+          0.0366412213740458
         ],
         "metrics": {
           "run_count": 8,
-          "total_return_pct": 4.2281459702310125,
-          "sharpe_ratio": 0.37351282582136847,
-          "sortino_ratio": 0.5297947195285034,
-          "risk_adjusted_return": 0.4516537726749359,
-          "max_drawdown_pct": 6.382771287440021,
+          "total_return_pct": 4.283604308507069,
+          "sharpe_ratio": 0.3640003414621314,
+          "sortino_ratio": 0.4995774155497208,
+          "risk_adjusted_return": 0.43178887850592607,
+          "max_drawdown_pct": 6.382773181683009,
           "total_trades": 240,
           "win_rate_pct": 26.25,
-          "turnover": 0.036753445635528334
+          "turnover": 0.0366412213740458
         },
         "balanced_selection_score": 0.0
       },
       {
         "params": {
-          "tech_weight": 0.20434963477513873,
-          "vcp_weight": 0.20206027722058678,
-          "bb_weight": 0.2108732782328054,
-          "cta_weight": 0.13452758400182077,
-          "pattern_weight": 0.11728054029778408,
-          "fund_weight": 0.09508510488701674,
-          "chip_weight": 0.06714610844185434,
-          "ml_weight": 0.43794612372571995,
-          "score_threshold": 0.47219835497809237,
-          "stop_loss_pct": 0.07670743375936441,
-          "risk_per_trade": 0.008132487076213264,
+          "tech_weight": 0.42217189528451143,
+          "vcp_weight": 0.39495303485325284,
+          "bb_weight": 0.28281731248512865,
+          "cta_weight": 0.01935042612932964,
+          "pattern_weight": 0.09908579837914501,
+          "fund_weight": 0.17900830562562536,
+          "chip_weight": 0.05512109126253505,
+          "ml_weight": 0.2960079580429947,
+          "score_threshold": 0.5762255303813663,
+          "stop_loss_pct": 0.04178691597534226,
+          "risk_per_trade": 0.009543058969465643,
+          "exit_ma_period": 36
+        },
+        "fitness": [
+          3.1088367653733338,
+          0.221070213867112,
+          8.530301765638875,
+          0.004122137404580153
+        ],
+        "metrics": {
+          "run_count": 8,
+          "total_return_pct": 3.1088367653733338,
+          "sharpe_ratio": 0.26496232911465745,
+          "sortino_ratio": 0.17717809861956657,
+          "risk_adjusted_return": 0.221070213867112,
+          "max_drawdown_pct": 8.530301765638875,
+          "total_trades": 27,
+          "win_rate_pct": 44.44444444444444,
+          "turnover": 0.004122137404580153
+        },
+        "balanced_selection_score": 0.0
+      },
+      {
+        "params": {
+          "tech_weight": 0.6242000507703397,
+          "vcp_weight": 0.20616906684544276,
+          "bb_weight": 0.20845524559153708,
+          "cta_weight": 0.2609653587861786,
+          "pattern_weight": 0.09965866232294898,
+          "fund_weight": 0.24121205173924834,
+          "chip_weight": 0.0850949782129631,
+          "ml_weight": 0.35823064483153805,
+          "score_threshold": 0.5672904200970962,
+          "stop_loss_pct": 0.04,
+          "risk_per_trade": 0.013263540402857052,
           "exit_ma_period": 21
         },
         "fitness": [
-          5.07670283287127,
-          0.514930734087537,
-          6.958363432528407,
-          0.040735068912710566
+          6.6520842220147465,
+          0.32702098417218184,
+          9.269107186060024,
+          0.004885496183206107
         ],
         "metrics": {
           "run_count": 8,
-          "total_return_pct": 5.07670283287127,
-          "sharpe_ratio": 0.4902266470404165,
-          "sortino_ratio": 0.5396348211346575,
-          "risk_adjusted_return": 0.514930734087537,
-          "max_drawdown_pct": 6.958363432528407,
-          "total_trades": 266,
-          "win_rate_pct": 30.82706766917293,
-          "turnover": 0.040735068912710566
+          "total_return_pct": 6.6520842220147465,
+          "sharpe_ratio": 0.4019310057824562,
+          "sortino_ratio": 0.25211096256190746,
+          "risk_adjusted_return": 0.32702098417218184,
+          "max_drawdown_pct": 9.269107186060024,
+          "total_trades": 32,
+          "win_rate_pct": 43.75,
+          "turnover": 0.004885496183206107
         },
         "balanced_selection_score": 0.0
       },
       {
         "params": {
-          "tech_weight": 0.5632099700409668,
-          "vcp_weight": 0.1824972757884068,
-          "bb_weight": 0.19750368603011878,
-          "cta_weight": 0.24300813928361367,
-          "pattern_weight": 0.15344806307044043,
-          "fund_weight": 0.13535565991017126,
-          "chip_weight": 0.06876678869478918,
-          "ml_weight": 0.1576160986147882,
-          "score_threshold": 0.5790355766877656,
-          "stop_loss_pct": 0.07381334851326922,
-          "risk_per_trade": 0.020124216190030148,
-          "exit_ma_period": 22
+          "tech_weight": 0.6191178982559069,
+          "vcp_weight": 0.23330155175326425,
+          "bb_weight": 0.18635350212889076,
+          "cta_weight": 0.1854368702478984,
+          "pattern_weight": 0.033345398119378374,
+          "fund_weight": 0.10309848436055098,
+          "chip_weight": 0.07229789498014276,
+          "ml_weight": 0.34054449610811655,
+          "score_threshold": 0.5731834466611132,
+          "stop_loss_pct": 0.1046817245458105,
+          "risk_per_trade": 0.02636656446645972,
+          "exit_ma_period": 33
         },
         "fitness": [
-          4.647665927307693,
-          0.30817810313899097,
-          8.231088838827322,
-          0.0038284839203675345
+          3.5763333336990555,
+          0.25291699973512005,
+          9.362243600989897,
+          0.003969465648854962
         ],
         "metrics": {
           "run_count": 8,
-          "total_return_pct": 4.647665927307693,
-          "sharpe_ratio": 0.3885395688715195,
-          "sortino_ratio": 0.22781663740646246,
-          "risk_adjusted_return": 0.30817810313899097,
-          "max_drawdown_pct": 8.231088838827322,
-          "total_trades": 25,
-          "win_rate_pct": 48.0,
-          "turnover": 0.0038284839203675345
-        },
-        "balanced_selection_score": 0.0
-      },
-      {
-        "params": {
-          "tech_weight": 0.6145924459610285,
-          "vcp_weight": 0.27323976504588854,
-          "bb_weight": 0.10448331457732798,
-          "cta_weight": 0.18393892659800964,
-          "pattern_weight": 0.025135364366678584,
-          "fund_weight": 0.011970086932161977,
-          "chip_weight": 0.06791760524006446,
-          "ml_weight": 0.31750153915890744,
-          "score_threshold": 0.45,
-          "stop_loss_pct": 0.06135687271259563,
-          "risk_per_trade": 0.00825185723671361,
-          "exit_ma_period": 15
-        },
-        "fitness": [
-          5.945661727382138,
-          0.46633939839854177,
-          10.04398065705027,
-          0.06018376722817764
-        ],
-        "metrics": {
-          "run_count": 8,
-          "total_return_pct": 5.945661727382138,
-          "sharpe_ratio": 0.39544385074974236,
-          "sortino_ratio": 0.5372349460473411,
-          "risk_adjusted_return": 0.46633939839854177,
-          "max_drawdown_pct": 10.04398065705027,
-          "total_trades": 393,
-          "win_rate_pct": 36.38676844783715,
-          "turnover": 0.06018376722817764
+          "total_return_pct": 3.5763333336990555,
+          "sharpe_ratio": 0.3021002465202491,
+          "sortino_ratio": 0.20373375294999094,
+          "risk_adjusted_return": 0.25291699973512005,
+          "max_drawdown_pct": 9.362243600989897,
+          "total_trades": 26,
+          "win_rate_pct": 42.30769230769231,
+          "turnover": 0.003969465648854962
         },
         "balanced_selection_score": 0.0
       },
@@ -1479,55 +1513,89 @@
           "exit_ma_period": 25
         },
         "fitness": [
-          8.689929941574551,
-          0.44913836028175913,
-          10.322433818714863,
-          0.03522205206738132
+          8.786020480288322,
+          0.44963000261397135,
+          10.322432291073207,
+          0.035267175572519086
         ],
         "metrics": {
           "run_count": 8,
-          "total_return_pct": 8.689929941574551,
-          "sharpe_ratio": 0.4214609631872832,
-          "sortino_ratio": 0.47681575737623505,
-          "risk_adjusted_return": 0.44913836028175913,
-          "max_drawdown_pct": 10.322433818714863,
-          "total_trades": 230,
-          "win_rate_pct": 34.34782608695652,
-          "turnover": 0.03522205206738132
+          "total_return_pct": 8.786020480288322,
+          "sharpe_ratio": 0.4210883999693855,
+          "sortino_ratio": 0.47817160525855723,
+          "risk_adjusted_return": 0.44963000261397135,
+          "max_drawdown_pct": 10.322432291073207,
+          "total_trades": 231,
+          "win_rate_pct": 34.1991341991342,
+          "turnover": 0.035267175572519086
         },
         "balanced_selection_score": 0.0
       },
       {
         "params": {
-          "tech_weight": 0.32870241149206336,
-          "vcp_weight": 0.31466622558619817,
-          "bb_weight": 0.17690546229846663,
-          "cta_weight": 0.13690408972266455,
-          "pattern_weight": 0.10434403635979582,
-          "fund_weight": 0.18823746954425785,
-          "chip_weight": 0.0,
-          "ml_weight": 0.44616487179729863,
-          "score_threshold": 0.5147090108267738,
-          "stop_loss_pct": 0.09216877027543272,
-          "risk_per_trade": 0.019446094808428654,
-          "exit_ma_period": 21
+          "tech_weight": 0.08033268222588896,
+          "vcp_weight": 0.2573049754113744,
+          "bb_weight": 0.09485478670825455,
+          "cta_weight": 0.0006307815232449582,
+          "pattern_weight": 0.18310092708331724,
+          "fund_weight": 0.3347071397106324,
+          "chip_weight": 0.026042216484079696,
+          "ml_weight": 0.27691270135947355,
+          "score_threshold": 0.5719978075714794,
+          "stop_loss_pct": 0.09956232839025213,
+          "risk_per_trade": 0.028126372087752705,
+          "exit_ma_period": 33
         },
         "fitness": [
-          5.647961152071618,
-          0.34988924019311285,
-          10.847963600728223,
-          0.0222052067381317
+          3.8878928934972015,
+          0.24524415422954438,
+          10.434274235004414,
+          0.003969465648854962
         ],
         "metrics": {
           "run_count": 8,
-          "total_return_pct": 5.647961152071618,
-          "sharpe_ratio": 0.3638307051773656,
-          "sortino_ratio": 0.3359477752088601,
-          "risk_adjusted_return": 0.34988924019311285,
-          "max_drawdown_pct": 10.847963600728223,
-          "total_trades": 145,
-          "win_rate_pct": 28.965517241379313,
-          "turnover": 0.0222052067381317
+          "total_return_pct": 3.8878928934972015,
+          "sharpe_ratio": 0.29151350336064563,
+          "sortino_ratio": 0.1989748050984431,
+          "risk_adjusted_return": 0.24524415422954438,
+          "max_drawdown_pct": 10.434274235004414,
+          "total_trades": 26,
+          "win_rate_pct": 42.30769230769231,
+          "turnover": 0.003969465648854962
+        },
+        "balanced_selection_score": 0.0
+      },
+      {
+        "params": {
+          "tech_weight": 0.155998741329684,
+          "vcp_weight": 0.12489777464053102,
+          "bb_weight": 0.32871243833459607,
+          "cta_weight": 0.16898918843829486,
+          "pattern_weight": 0.07524912406049988,
+          "fund_weight": 0.3450355352378971,
+          "chip_weight": 0.22657847465190825,
+          "ml_weight": 0.466228320600395,
+          "score_threshold": 0.5438485518970051,
+          "stop_loss_pct": 0.045773349838352594,
+          "risk_per_trade": 0.009233897696942214,
+          "exit_ma_period": 60
+        },
+        "fitness": [
+          6.216438882406411,
+          0.34164096931316007,
+          10.693618879734204,
+          0.007175572519083969
+        ],
+        "metrics": {
+          "run_count": 8,
+          "total_return_pct": 6.216438882406411,
+          "sharpe_ratio": 0.3620774303604587,
+          "sortino_ratio": 0.32120450826586155,
+          "risk_adjusted_return": 0.34164096931316007,
+          "max_drawdown_pct": 10.693618879734204,
+          "total_trades": 47,
+          "win_rate_pct": 34.04255319148936,
+          "turnover": 0.007175572519083969
         },
         "balanced_selection_score": 0.0
       },
@@ -1547,89 +1615,55 @@
           "exit_ma_period": 35
         },
         "fitness": [
-          6.914680505167469,
-          0.38138153403911956,
-          10.927681448433509,
-          0.012557427258805513
+          6.744369923371539,
+          0.3717356172756082,
+          10.927678828310624,
+          0.01282442748091603
         ],
         "metrics": {
           "run_count": 8,
-          "total_return_pct": 6.914680505167469,
-          "sharpe_ratio": 0.4000504024115915,
-          "sortino_ratio": 0.3627126656666476,
-          "risk_adjusted_return": 0.38138153403911956,
-          "max_drawdown_pct": 10.927681448433509,
-          "total_trades": 82,
-          "win_rate_pct": 34.146341463414636,
-          "turnover": 0.012557427258805513
+          "total_return_pct": 6.744369923371539,
+          "sharpe_ratio": 0.3883701046928929,
+          "sortino_ratio": 0.3551011298583234,
+          "risk_adjusted_return": 0.3717356172756082,
+          "max_drawdown_pct": 10.927678828310624,
+          "total_trades": 84,
+          "win_rate_pct": 33.33333333333333,
+          "turnover": 0.01282442748091603
         },
         "balanced_selection_score": 0.0
       },
       {
         "params": {
-          "tech_weight": 0.6476578687130566,
-          "vcp_weight": 0.0293042884398532,
-          "bb_weight": 0.07460400929346414,
-          "cta_weight": 0.09282014516264046,
-          "pattern_weight": 0.23331484449842727,
-          "fund_weight": 0.3083024607902538,
-          "chip_weight": 0.2198175606211357,
-          "ml_weight": 0.20323989880638618,
-          "score_threshold": 0.5209860745607544,
-          "stop_loss_pct": 0.10669959637118456,
-          "risk_per_trade": 0.022588498127184272,
-          "exit_ma_period": 49
-        },
-        "fitness": [
-          6.364979364029269,
-          0.33480986822567266,
-          11.654236541141236,
-          0.011332312404287902
-        ],
-        "metrics": {
-          "run_count": 8,
-          "total_return_pct": 6.364979364029269,
-          "sharpe_ratio": 0.33881237708639955,
-          "sortino_ratio": 0.33080735936494576,
-          "risk_adjusted_return": 0.33480986822567266,
-          "max_drawdown_pct": 11.654236541141236,
-          "total_trades": 74,
-          "win_rate_pct": 31.08108108108108,
-          "turnover": 0.011332312404287902
-        },
-        "balanced_selection_score": 0.0
-      },
-      {
-        "params": {
-          "tech_weight": 0.3400159440063686,
-          "vcp_weight": 0.3427984371077381,
-          "bb_weight": 0.2605219964911364,
-          "cta_weight": 0.015213128862008062,
-          "pattern_weight": 0.25,
+          "tech_weight": 0.05,
+          "vcp_weight": 0.1987971672255444,
+          "bb_weight": 0.18103423317865724,
+          "cta_weight": 0.1606231858309854,
+          "pattern_weight": 0.08256717382040026,
           "fund_weight": 0.35,
-          "chip_weight": 0.08285497638038147,
-          "ml_weight": 0.25389903620928317,
-          "score_threshold": 0.4852253419936997,
-          "stop_loss_pct": 0.10901503294844453,
-          "risk_per_trade": 0.02131419046194121,
-          "exit_ma_period": 60
+          "chip_weight": 0.08152464703589009,
+          "ml_weight": 0.31214072530310727,
+          "score_threshold": 0.5050271276551184,
+          "stop_loss_pct": 0.10476412449477787,
+          "risk_per_trade": 0.020877159803382384,
+          "exit_ma_period": 52
         },
         "fitness": [
-          7.95436296881881,
-          0.3619089712580903,
-          12.75636564849598,
-          0.01562021439509954
+          8.427450400170626,
+          0.4298135524802993,
+          12.283953720595722,
+          0.013893129770992366
         ],
         "metrics": {
           "run_count": 8,
-          "total_return_pct": 7.95436296881881,
-          "sharpe_ratio": 0.3297949524808526,
-          "sortino_ratio": 0.3940229900353278,
-          "risk_adjusted_return": 0.3619089712580903,
-          "max_drawdown_pct": 12.75636564849598,
-          "total_trades": 102,
-          "win_rate_pct": 29.411764705882355,
-          "turnover": 0.01562021439509954
+          "total_return_pct": 8.427450400170626,
+          "sharpe_ratio": 0.4081834026367337,
+          "sortino_ratio": 0.451443702323865,
+          "risk_adjusted_return": 0.4298135524802993,
+          "max_drawdown_pct": 12.283953720595722,
+          "total_trades": 91,
+          "win_rate_pct": 32.967032967032964,
+          "turnover": 0.013893129770992366
         },
         "balanced_selection_score": 0.0
       },
@@ -1649,57 +1683,23 @@
           "exit_ma_period": 18
         },
         "fitness": [
-          9.257895390993337,
-          0.47175780414355906,
-          12.787854392831395,
-          0.042725880551301686
+          9.347905812591922,
+          0.4719682942867487,
+          12.78785234500047,
+          0.042748091603053436
         ],
         "metrics": {
           "run_count": 8,
-          "total_return_pct": 9.257895390993337,
-          "sharpe_ratio": 0.461328876970949,
-          "sortino_ratio": 0.48218673131616907,
-          "risk_adjusted_return": 0.47175780414355906,
-          "max_drawdown_pct": 12.787854392831395,
-          "total_trades": 279,
-          "win_rate_pct": 37.27598566308244,
-          "turnover": 0.042725880551301686
+          "total_return_pct": 9.347905812591922,
+          "sharpe_ratio": 0.4610102416196856,
+          "sortino_ratio": 0.48292634695381176,
+          "risk_adjusted_return": 0.4719682942867487,
+          "max_drawdown_pct": 12.78785234500047,
+          "total_trades": 280,
+          "win_rate_pct": 37.142857142857146,
+          "turnover": 0.042748091603053436
         },
         "balanced_selection_score": 0.0
-      },
-      {
-        "params": {
-          "tech_weight": 0.2835130374612246,
-          "vcp_weight": 0.39661923212841954,
-          "bb_weight": 0.3262331305856141,
-          "cta_weight": 0.06524931851980488,
-          "pattern_weight": 0.06756064581435726,
-          "fund_weight": 0.14214625991094682,
-          "chip_weight": 0.11708890084650866,
-          "ml_weight": 0.09966150021991305,
-          "score_threshold": 0.45,
-          "stop_loss_pct": 0.11171697049321881,
-          "risk_per_trade": 0.022371816275018313,
-          "exit_ma_period": 59
-        },
-        "fitness": [
-          12.896580994979962,
-          0.5197790957274233,
-          13.159224647675783,
-          0.019448698315467076
-        ],
-        "metrics": {
-          "run_count": 8,
-          "total_return_pct": 12.896580994979962,
-          "sharpe_ratio": 0.43662206939969295,
-          "sortino_ratio": 0.6029361220551538,
-          "risk_adjusted_return": 0.5197790957274233,
-          "max_drawdown_pct": 13.159224647675783,
-          "total_trades": 127,
-          "win_rate_pct": 29.92125984251969,
-          "turnover": 0.019448698315467076
-        },
-        "balanced_selection_score": 0.7099174949099855
       },
       {
         "params": {
@@ -1717,55 +1717,21 @@
           "exit_ma_period": 27
         },
         "fitness": [
-          7.052365676555617,
-          0.2694188343050778,
-          13.79382778340017,
-          0.007350689127105666
+          7.094095004159649,
+          0.2721937238472615,
+          13.793837816545365,
+          0.00732824427480916
         ],
         "metrics": {
           "run_count": 8,
-          "total_return_pct": 7.052365676555617,
-          "sharpe_ratio": 0.2758080530358142,
-          "sortino_ratio": 0.26302961557434135,
-          "risk_adjusted_return": 0.2694188343050778,
-          "max_drawdown_pct": 13.79382778340017,
+          "total_return_pct": 7.094095004159649,
+          "sharpe_ratio": 0.2797139119810894,
+          "sortino_ratio": 0.2646735357134335,
+          "risk_adjusted_return": 0.2721937238472615,
+          "max_drawdown_pct": 13.793837816545365,
           "total_trades": 48,
           "win_rate_pct": 35.41666666666667,
-          "turnover": 0.007350689127105666
-        },
-        "balanced_selection_score": 0.0
-      },
-      {
-        "params": {
-          "tech_weight": 0.5061068768518358,
-          "vcp_weight": 0.17014898047451732,
-          "bb_weight": 0.2157551503175904,
-          "cta_weight": 0.06196450300564193,
-          "pattern_weight": 0.05971480754022898,
-          "fund_weight": 0.35,
-          "chip_weight": 0.0,
-          "ml_weight": 0.04328183907656499,
-          "score_threshold": 0.5490636146991807,
-          "stop_loss_pct": 0.09152248038911619,
-          "risk_per_trade": 0.02796696895457239,
-          "exit_ma_period": 27
-        },
-        "fitness": [
-          7.11908076647447,
-          0.32700757085598153,
-          13.901280655200233,
-          0.007503828483920368
-        ],
-        "metrics": {
-          "run_count": 8,
-          "total_return_pct": 7.11908076647447,
-          "sharpe_ratio": 0.35144942534481083,
-          "sortino_ratio": 0.30256571636715224,
-          "risk_adjusted_return": 0.32700757085598153,
-          "max_drawdown_pct": 13.901280655200233,
-          "total_trades": 49,
-          "win_rate_pct": 36.734693877551024,
-          "turnover": 0.007503828483920368
+          "turnover": 0.00732824427480916
         },
         "balanced_selection_score": 0.0
       },
@@ -1785,55 +1751,55 @@
           "exit_ma_period": 24
         },
         "fitness": [
-          13.704970171221674,
-          0.4140378244568462,
-          14.951386469468535,
-          0.007503828483920368
+          13.704905832659936,
+          0.41315893426536093,
+          14.951384722448104,
+          0.007480916030534351
         ],
         "metrics": {
           "run_count": 8,
-          "total_return_pct": 13.704970171221674,
-          "sharpe_ratio": 0.46063092258975474,
-          "sortino_ratio": 0.36744472632393776,
-          "risk_adjusted_return": 0.4140378244568462,
-          "max_drawdown_pct": 14.951386469468535,
+          "total_return_pct": 13.704905832659936,
+          "sharpe_ratio": 0.4599673217606423,
+          "sortino_ratio": 0.3663505467700795,
+          "risk_adjusted_return": 0.41315893426536093,
+          "max_drawdown_pct": 14.951384722448104,
           "total_trades": 49,
           "win_rate_pct": 40.816326530612244,
-          "turnover": 0.007503828483920368
+          "turnover": 0.007480916030534351
         },
         "balanced_selection_score": 0.0
       },
       {
         "params": {
-          "tech_weight": 0.32042068324802364,
-          "vcp_weight": 0.003867871679279905,
-          "bb_weight": 0.27603622589204607,
-          "cta_weight": 0.0,
-          "pattern_weight": 0.0656168459214897,
-          "fund_weight": 0.2062430299501032,
-          "chip_weight": 0.08939405638655923,
-          "ml_weight": 0.25313000637790684,
+          "tech_weight": 0.65,
+          "vcp_weight": 0.3321221330318566,
+          "bb_weight": 0.08106560693899985,
+          "cta_weight": 0.005743814999135878,
+          "pattern_weight": 0.13858506485829408,
+          "fund_weight": 0.28260936270566184,
+          "chip_weight": 0.00789618583179291,
+          "ml_weight": 0.2926921602150256,
           "score_threshold": 0.45,
-          "stop_loss_pct": 0.11964328451927299,
-          "risk_per_trade": 0.023403088849910193,
-          "exit_ma_period": 24
+          "stop_loss_pct": 0.06987842267410854,
+          "risk_per_trade": 0.02393261797911772,
+          "exit_ma_period": 30
         },
         "fitness": [
-          12.089572868121575,
-          0.5723125469758368,
-          16.26451456519737,
-          0.04624808575803982
+          19.245533746381952,
+          0.47996184963618327,
+          21.300882342474093,
+          0.039083969465648856
         ],
         "metrics": {
           "run_count": 8,
-          "total_return_pct": 12.089572868121575,
-          "sharpe_ratio": 0.49023583254702874,
-          "sortino_ratio": 0.6543892614046449,
-          "risk_adjusted_return": 0.5723125469758368,
-          "max_drawdown_pct": 16.26451456519737,
-          "total_trades": 302,
-          "win_rate_pct": 32.450331125827816,
-          "turnover": 0.04624808575803982
+          "total_return_pct": 19.245533746381952,
+          "sharpe_ratio": 0.40992201384249094,
+          "sortino_ratio": 0.5500016854298756,
+          "risk_adjusted_return": 0.47996184963618327,
+          "max_drawdown_pct": 21.300882342474093,
+          "total_trades": 256,
+          "win_rate_pct": 28.90625,
+          "turnover": 0.039083969465648856
         },
         "balanced_selection_score": 0.0
       },
@@ -1853,23 +1819,23 @@
           "exit_ma_period": 60
         },
         "fitness": [
-          22.427374530778977,
-          0.4698905113465509,
-          21.930210303600372,
-          0.016845329249617153
+          22.513526172458505,
+          0.4695452375721009,
+          21.93032496684671,
+          0.016793893129770993
         ],
         "metrics": {
           "run_count": 8,
-          "total_return_pct": 22.427374530778977,
-          "sharpe_ratio": 0.41753464850881217,
-          "sortino_ratio": 0.5222463741842895,
-          "risk_adjusted_return": 0.4698905113465509,
-          "max_drawdown_pct": 21.930210303600372,
+          "total_return_pct": 22.513526172458505,
+          "sharpe_ratio": 0.41670859939596117,
+          "sortino_ratio": 0.5223818757482408,
+          "risk_adjusted_return": 0.4695452375721009,
+          "max_drawdown_pct": 21.93032496684671,
           "total_trades": 110,
           "win_rate_pct": 31.818181818181817,
-          "turnover": 0.016845329249617153
+          "turnover": 0.016793893129770993
         },
-        "balanced_selection_score": 0.0
+        "balanced_selection_score": 0.690649271077882
       },
       {
         "params": {
@@ -1887,123 +1853,55 @@
           "exit_ma_period": 44
         },
         "fitness": [
-          15.412352136107835,
-          0.38567523278451754,
-          22.774661333023893,
-          0.015467075038284839
+          14.925045154022616,
+          0.3713912453888678,
+          24.60135366614073,
+          0.015572519083969465
         ],
         "metrics": {
           "run_count": 8,
-          "total_return_pct": 15.412352136107835,
-          "sharpe_ratio": 0.35534059261924317,
-          "sortino_ratio": 0.41600987294979186,
-          "risk_adjusted_return": 0.38567523278451754,
-          "max_drawdown_pct": 22.774661333023893,
-          "total_trades": 101,
-          "win_rate_pct": 27.722772277227726,
-          "turnover": 0.015467075038284839
-        },
-        "balanced_selection_score": 0.0
-      },
-      {
-        "params": {
-          "tech_weight": 0.6182337680346924,
-          "vcp_weight": 0.4,
-          "bb_weight": 0.06555823548587435,
-          "cta_weight": 0.11443975857461772,
-          "pattern_weight": 0.23694789163342736,
-          "fund_weight": 0.32853235835915,
-          "chip_weight": 0.08363888688557147,
-          "ml_weight": 0.22632094903181016,
-          "score_threshold": 0.4639624005637305,
-          "stop_loss_pct": 0.04,
-          "risk_per_trade": 0.019812586024757647,
-          "exit_ma_period": 26
-        },
-        "fitness": [
-          23.41623657112561,
-          0.49050633350715345,
-          25.98922108135451,
-          0.03966309341500766
-        ],
-        "metrics": {
-          "run_count": 8,
-          "total_return_pct": 23.41623657112561,
-          "sharpe_ratio": 0.4523576450755273,
-          "sortino_ratio": 0.5286550219387796,
-          "risk_adjusted_return": 0.49050633350715345,
-          "max_drawdown_pct": 25.98922108135451,
-          "total_trades": 259,
-          "win_rate_pct": 33.59073359073359,
-          "turnover": 0.03966309341500766
-        },
-        "balanced_selection_score": 0.0
-      },
-      {
-        "params": {
-          "tech_weight": 0.5565774492368474,
-          "vcp_weight": 0.0,
-          "bb_weight": 0.20451399686026356,
-          "cta_weight": 0.03217137111481867,
-          "pattern_weight": 0.01930736957841238,
-          "fund_weight": 0.25063726010769216,
-          "chip_weight": 0.06891561475860483,
-          "ml_weight": 0.25343816732638164,
-          "score_threshold": 0.46499772159844643,
-          "stop_loss_pct": 0.04,
-          "risk_per_trade": 0.022351417043444156,
-          "exit_ma_period": 31
-        },
-        "fitness": [
-          22.45106160965483,
-          0.4323246035897725,
-          29.571823669955183,
-          0.03415007656967841
-        ],
-        "metrics": {
-          "run_count": 8,
-          "total_return_pct": 22.45106160965483,
-          "sharpe_ratio": 0.39772985994737176,
-          "sortino_ratio": 0.4669193472321732,
-          "risk_adjusted_return": 0.4323246035897725,
-          "max_drawdown_pct": 29.571823669955183,
-          "total_trades": 223,
-          "win_rate_pct": 28.699551569506728,
-          "turnover": 0.03415007656967841
-        },
-        "balanced_selection_score": 0.0
-      },
-      {
-        "params": {
-          "tech_weight": 0.5761727099951923,
-          "vcp_weight": 0.35117845078664955,
-          "bb_weight": 0.18899976745935382,
-          "cta_weight": 0.05357152331248581,
-          "pattern_weight": 0.21234755162329888,
-          "fund_weight": 0.35,
-          "chip_weight": 0.0623765347524271,
-          "ml_weight": 0.25420719715775797,
-          "score_threshold": 0.49083561171496154,
-          "stop_loss_pct": 0.04,
-          "risk_per_trade": 0.020262518655475174,
-          "exit_ma_period": 60
-        },
-        "fitness": [
-          18.172530037414255,
-          0.37788182146881755,
-          29.991488477674626,
-          0.01562021439509954
-        ],
-        "metrics": {
-          "run_count": 8,
-          "total_return_pct": 18.172530037414255,
-          "sharpe_ratio": 0.345071499247058,
-          "sortino_ratio": 0.41069214369057705,
-          "risk_adjusted_return": 0.37788182146881755,
-          "max_drawdown_pct": 29.991488477674626,
+          "total_return_pct": 14.925045154022616,
+          "sharpe_ratio": 0.3405016631904584,
+          "sortino_ratio": 0.40228082758727723,
+          "risk_adjusted_return": 0.3713912453888678,
+          "max_drawdown_pct": 24.60135366614073,
           "total_trades": 102,
           "win_rate_pct": 27.450980392156865,
-          "turnover": 0.01562021439509954
+          "turnover": 0.015572519083969465
+        },
+        "balanced_selection_score": 0.0
+      },
+      {
+        "params": {
+          "tech_weight": 0.05,
+          "vcp_weight": 0.23802907933617934,
+          "bb_weight": 0.1860981430207589,
+          "cta_weight": 0.1335794003698706,
+          "pattern_weight": 0.06640335803733616,
+          "fund_weight": 0.1240301607715534,
+          "chip_weight": 0.012712778760887472,
+          "ml_weight": 0.0,
+          "score_threshold": 0.45,
+          "stop_loss_pct": 0.04639146210826274,
+          "risk_per_trade": 0.02079197306205843,
+          "exit_ma_period": 29
+        },
+        "fitness": [
+          24.05050681866784,
+          0.46635957980063436,
+          25.832706053921896,
+          0.040916030534351146
+        ],
+        "metrics": {
+          "run_count": 8,
+          "total_return_pct": 24.05050681866784,
+          "sharpe_ratio": 0.39501929453575496,
+          "sortino_ratio": 0.5376998650655137,
+          "risk_adjusted_return": 0.46635957980063436,
+          "max_drawdown_pct": 25.832706053921896,
+          "total_trades": 268,
+          "win_rate_pct": 28.73134328358209,
+          "turnover": 0.040916030534351146
         },
         "balanced_selection_score": 0.0
       }

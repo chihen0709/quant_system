@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ page_title }}</title>
+  <link rel="stylesheet" href="{{ url_for('static', path='/quant_web.css') }}">
+</head>
+<body>
+  <div class="page-shell">
+    <header class="site-header">
+      <div class="site-header__bar">
+        <a class="site-brand" href="/">
+          <span class="site-brand__title">Stock Minervini Atlas</span>
+          <span class="site-brand__sub">Telegram 選股結果與產業地圖共用同一份 JSON</span>
+        </a>
+        <nav class="site-nav">
+          {% for item in nav_items %}
+          <a class="site-nav__link{% if active_page == item.key %} is-active{% endif %}" href="{{ item.href }}">{{ item.label }}</a>
+          {% endfor %}
+        </nav>
+      </div>
+    </header>
+
+    <main class="page-main">
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+  <script src="{{ url_for('static', path='/quant_web.js') }}"></script>
+</body>
+</html>

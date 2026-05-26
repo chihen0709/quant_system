@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="hero-grid">
+  <div class="hero-copy hero-panel">
+    <p class="eyebrow">Stock Detail</p>
+    <h1>{{ stock.ticker }} {{ stock.company }}</h1>
+    <p class="hero-text">{{ stock.industry or '未分類' }}</p>
+
+    <div class="metric-grid metric-grid--wide">
+      <article class="metric-card">
+        <p class="metric-card__label">Total</p>
+        <p class="metric-card__value">{{ fmt_num(stock.total_score) }}</p>
+      </article>
+      <article class="metric-card">
+        <p class="metric-card__label">Tech</p>
+        <p class="metric-card__value">{{ fmt_num(stock.tech_score) }}</p>
+      </article>
+      <article class="metric-card">
+        <p class="metric-card__label">Fund</p>
+        <p class="metric-card__value">{{ fmt_num(stock.fund_score) }}</p>
+      </article>
+      <article class="metric-card">
+        <p class="metric-card__label">Chip</p>
+        <p class="metric-card__value">{{ fmt_num(stock.chip_score) }}</p>
+      </article>
+    </div>
+
+    <div class="pill-row">
+      <span class="pill">Close {{ fmt_price(stock.close) }}</span>
+      <span class="pill">策略 {{ stock.strategy or '綜合策略' }}</span>
+      <span class="pill">勝率 {{ fmt_num(stock.estimated_win_rate_pct) }}%</span>
+    </div>
+
+    <div class="tag-row tag-row--spaced">
+      {% for tag in stock.tags %}
+      <span class="tag">{{ tag }}</span>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="hero-panel">
+    <p class="eyebrow">Industry Links</p>
+    <h2>關聯主題</h2>
+    {% if related_topics %}
+      <div class="topic-list">
+        {% for topic in related_topics %}
+        <a class="topic-list__item" href="{{ topic.url }}">
+          <strong>{{ topic.title }}</strong>
+          <span>{{ topic.subtitle }}</span>
+        </a>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="empty-panel">目前沒有對應的產業地圖主題。</div>
+    {% endif %}
+  </div>
+</section>
+
+<section class="section-block">
+  <div class="section-head">
+    <div>
+      <p class="eyebrow">Reports</p>
+      <h2>報表圖卡</h2>
+    </div>
+  </div>
+  {% if report_assets %}
+  <div class="media-grid">
+    {% for asset in report_assets %}
+    <article class="media-card">
+      <div class="media-card__head">{{ asset.label }}</div>
+      <div class="media-frame"><img src="{{ asset.url }}" alt="{{ asset.label }}"></div>
+    </article>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="empty-panel">這檔股票目前沒有已產出的圖卡。</div>
+  {% endif %}
+</section>
+{% endblock %}

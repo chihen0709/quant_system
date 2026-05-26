@@ -1,0 +1,162 @@
+{
+  "topic_key": "pcb",
+  "topic_title": "PCB",
+  "generated_at": "2026-05-26 06:39:04",
+  "source_ranked_file": "data/latest_ranked_tw.json",
+  "analysis_window": {
+    "tracked_companies": 3,
+    "deep_analyzed_companies": 3,
+    "max_companies": 8
+  },
+  "topic_brief": {
+    "summary": "追蹤高階板材、伺服器板與 HDI 相關受惠鏈，適合和載板、散熱鏈一起交叉觀察。",
+    "highlights": [
+      "主題共追蹤 3 檔，這次深入解析 3 檔。",
+      "其中 0 檔有最新量化分數，0 檔屬於 priority 名單。",
+      "已解析公司裡有 0 檔營收年增為正、3 檔近 5 日法人偏多。"
+    ],
+    "risks": [
+      "主題股若只剩少數龍頭有分數，其餘公司沒有同步進榜，通常代表資金擴散還不完整。",
+      "若營收動能、法人流向和價格趨勢不同步，題材很容易先漲故事再回頭修正。"
+    ],
+    "leaders": []
+  },
+  "companies": [
+    {
+      "ticker": "2313.TW",
+      "code": "2313",
+      "company": "華通",
+      "lane_title": "板廠",
+      "role": "PCB / HDI",
+      "focus": "",
+      "thesis": "",
+      "industry": "Electronic Components",
+      "profile": "產業: Electronic Components",
+      "close": null,
+      "total_score": null,
+      "tech_score": null,
+      "fund_score": null,
+      "chip_score": null,
+      "priority_score": null,
+      "estimated_win_rate_pct": null,
+      "strategy": null,
+      "is_priority": false,
+      "tags": [],
+      "single_month_revenue": 6315284000.0,
+      "single_month_mom": null,
+      "single_month_yoy": null,
+      "eps_latest_quarter": 1.26,
+      "eps_ttm": 5.67,
+      "chips_summary": "TWSE-T86：近 5 日三大法人合計買超 46390 張；取近 10 個交易日",
+      "foreign_5d": 41538.579,
+      "trust_5d": 4030.0,
+      "dealer_5d": 0.0,
+      "total_5d": 46389.514,
+      "sources": [
+        "FinMind-Revenue",
+        "FinMind-EPS",
+        "TWSE-T86"
+      ],
+      "bull_signals": [
+        "TTM EPS 約 5.67，獲利基底仍在。",
+        "近 5 日法人合計偏多，約買超 46390 張。"
+      ],
+      "risk_flags": [
+        "短線仍要留意題材過熱、估值先跑與訂單遞延風險。"
+      ],
+      "summary": "TTM EPS 約 5.67，獲利基底仍在。"
+    },
+    {
+      "ticker": "3044.TW",
+      "code": "3044",
+      "company": "健鼎",
+      "lane_title": "板廠",
+      "role": "伺服器板",
+      "focus": "",
+      "thesis": "",
+      "industry": "Electronic Components",
+      "profile": "產業: Electronic Components",
+      "close": null,
+      "total_score": null,
+      "tech_score": null,
+      "fund_score": null,
+      "chip_score": null,
+      "priority_score": null,
+      "estimated_win_rate_pct": null,
+      "strategy": null,
+      "is_priority": false,
+      "tags": [],
+      "single_month_revenue": 8201133000.0,
+      "single_month_mom": null,
+      "single_month_yoy": null,
+      "eps_latest_quarter": 5.61,
+      "eps_ttm": 20.58,
+      "chips_summary": "TWSE-T86：近 5 日三大法人合計買超 80 張；取近 10 個交易日",
+      "foreign_5d": 587.506,
+      "trust_5d": -428.00800000000004,
+      "dealer_5d": 0.0,
+      "total_5d": 80.13700000000006,
+      "sources": [
+        "FinMind-Revenue",
+        "FinMind-EPS",
+        "TWSE-T86"
+      ],
+      "bull_signals": [
+        "TTM EPS 約 20.58，獲利基底仍在。",
+        "近 5 日法人合計偏多，約買超 80 張。"
+      ],
+      "risk_flags": [
+        "短線仍要留意題材過熱、估值先跑與訂單遞延風險。"
+      ],
+      "summary": "TTM EPS 約 20.58，獲利基底仍在。"
+    },
+    {
+      "ticker": "4958.TW",
+      "code": "4958",
+      "company": "臻鼎-KY",
+      "lane_title": "板廠",
+      "role": "PCB",
+      "focus": "",
+      "thesis": "",
+      "industry": "Electronic Components",
+      "profile": "產業: Electronic Components",
+      "close": null,
+      "total_score": null,
+      "tech_score": null,
+      "fund_score": null,
+      "chip_score": null,
+      "priority_score": null,
+      "estimated_win_rate_pct": null,
+      "strategy": null,
+      "is_priority": false,
+      "tags": [],
+      "single_month_revenue": 15196261000.0,
+      "single_month_mom": null,
+      "single_month_yoy": null,
+      "eps_latest_quarter": 1.33,
+      "eps_ttm": 7.54,
+      "chips_summary": "TWSE-T86：近 5 日三大法人合計買超 13502 張；取近 10 個交易日",
+      "foreign_5d": -4400.581,
+      "trust_5d": 17821.568,
+      "dealer_5d": 0.0,
+      "total_5d": 13501.619000000002,
+      "sources": [
+        "FinMind-Revenue",
+        "FinMind-EPS",
+        "TWSE-T86"
+      ],
+      "bull_signals": [
+        "TTM EPS 約 7.54，獲利基底仍在。",
+        "近 5 日法人合計偏多，約買超 13502 張。"
+      ],
+      "risk_flags": [
+        "短線仍要留意題材過熱、估值先跑與訂單遞延風險。"
+      ],
+      "summary": "TTM EPS 約 7.54，獲利基底仍在。"
+    }
+  ],
+  "ai_analysis": {
+    "status": "disabled",
+    "reason": "未設定 OLLAMA_BASE_URL 或 OLLAMA_MODEL，先回傳規則式分析。"
+  }
+}

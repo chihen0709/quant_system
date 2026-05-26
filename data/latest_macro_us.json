@@ -1,0 +1,129 @@
+{
+  "rows": [
+    {
+      "label": "今日",
+      "date": "2026-05-22",
+      "index_ret": 0.372697324090665,
+      "index_ret_display": "+0.37%",
+      "score": 0.255,
+      "sentiment": "偏多",
+      "fields": [
+        {
+          "key": "Index_Momentum",
+          "label": "指數動能",
+          "display": "+0.37%",
+          "value": 0.372697324090665,
+          "score": 0.35
+        },
+        {
+          "key": "VIX_Risk",
+          "label": "VIX",
+          "display": "16.7",
+          "value": 16.700000762939453,
+          "score": 0.0
+        },
+        {
+          "key": "Breadth_Proxy",
+          "label": "市場廣度",
+          "display": "100%",
+          "value": 100.0,
+          "score": 0.25
+        },
+        {
+          "key": "Risk_Appetite",
+          "label": "風險偏好",
+          "display": "+1.8%",
+          "value": 1.792559443750652,
+          "score": 0.0
+        }
+      ],
+      "real_count": 4,
+      "data_status": "4/4 real"
+    },
+    {
+      "label": "T-1",
+      "date": "2026-05-21",
+      "index_ret": 0.1715330430698936,
+      "index_ret_display": "+0.17%",
+      "score": 0.29562499999999997,
+      "sentiment": "偏多",
+      "fields": [
+        {
+          "key": "Index_Momentum",
+          "label": "指數動能",
+          "display": "+0.17%",
+          "value": 0.1715330430698936,
+          "score": 0.35
+        },
+        {
+          "key": "VIX_Risk",
+          "label": "VIX",
+          "display": "16.8",
+          "value": 16.760000228881836,
+          "score": 0.0
+        },
+        {
+          "key": "Breadth_Proxy",
+          "label": "市場廣度",
+          "display": "100%",
+          "value": 100.0,
+          "score": 0.25
+        },
+        {
+          "key": "Risk_Appetite",
+          "label": "風險偏好",
+          "display": "+2.3%",
+          "value": 2.268907487394234,
+          "score": 0.25
+        }
+      ],
+      "real_count": 4,
+      "data_status": "4/4 real"
+    },
+    {
+      "label": "T-2",
+      "date": "2026-05-20",
+      "index_ret": 1.0792026370445518,
+      "index_ret_display": "+1.08%",
+      "score": 0.29562499999999997,
+      "sentiment": "偏多",
+      "fields": [
+        {
+          "key": "Index_Momentum",
+          "label": "指數動能",
+          "display": "+1.08%",
+          "value": 1.0792026370445518,
+          "score": 0.35
+        },
+        {
+          "key": "VIX_Risk",
+          "label": "VIX",
+          "display": "17.4",
+          "value": 17.440000534057617,
+          "score": 0.0
+        },
+        {
+          "key": "Breadth_Proxy",
+          "label": "市場廣度",
+          "display": "100%",
+          "value": 100.0,
+          "score": 0.25
+        },
+        {
+          "key": "Risk_Appetite",
+          "label": "風險偏好",
+          "display": "+2.6%",
+          "value": 2.630207391021566,
+          "score": 0.25
+        }
+      ],
+      "real_count": 4,
+      "data_status": "4/4 real"
+    }
+  ],
+  "latest_score": 0.255,
+  "latest_mode": "offensive",
+  "region": "US",
+  "updated_at": "2026-05-26 05:00:09",
+  "report_image": "US_macro_dashboard.png"
+}

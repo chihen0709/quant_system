@@ -1,0 +1,378 @@
+{
+  "topic_key": "ic-substrate",
+  "topic_title": "IC 載板",
+  "generated_at": "2026-05-26 06:25:30",
+  "source_ranked_file": "data/latest_ranked_tw.json",
+  "analysis_window": {
+    "tracked_companies": 15,
+    "deep_analyzed_companies": 8,
+    "max_companies": 8
+  },
+  "topic_brief": {
+    "summary": "AI GPU、CoWoS 與高階伺服器升級，把 ABF 載板重新拉回市場核心。這個主題頁不是單看哪一檔最會漲，而是把需求、瓶頸、供應鏈位置與你 Telegram 最新選股分數接成同一張圖。",
+    "highlights": [
+      "主題共追蹤 15 檔，這次深入解析 8 檔。",
+      "其中 0 檔有最新量化分數，0 檔屬於 priority 名單。",
+      "已解析公司裡有 0 檔營收年增為正、4 檔近 5 日法人偏多。"
+    ],
+    "risks": [
+      "主題股若只剩少數龍頭有分數，其餘公司沒有同步進榜，通常代表資金擴散還不完整。",
+      "若營收動能、法人流向和價格趨勢不同步，題材很容易先漲故事再回頭修正。"
+    ],
+    "leaders": []
+  },
+  "companies": [
+    {
+      "ticker": "2330.TW",
+      "code": "2330",
+      "company": "台積電",
+      "lane_title": "AI / HPC 需求",
+      "role": "CoWoS / 先進封裝需求核心",
+      "focus": "",
+      "thesis": "封裝產能、客戶導入與先進節點需求，是整條鏈最上游的方向盤。",
+      "industry": "Semiconductors",
+      "profile": "產業: Semiconductors",
+      "close": null,
+      "total_score": null,
+      "tech_score": null,
+      "fund_score": null,
+      "chip_score": null,
+      "priority_score": null,
+      "estimated_win_rate_pct": null,
+      "strategy": null,
+      "is_priority": false,
+      "tags": [],
+      "single_month_revenue": 410725118000.0,
+      "single_month_mom": null,
+      "single_month_yoy": null,
+      "eps_latest_quarter": 22.08,
+      "eps_ttm": 74.39,
+      "chips_summary": "TWSE-T86：近 5 日三大法人合計賣超 12126 張；取近 10 個交易日",
+      "foreign_5d": -22485.503,
+      "trust_5d": 10163.675,
+      "dealer_5d": 0.0,
+      "total_5d": -12125.572,
+      "sources": [
+        "FinMind-Revenue",
+        "FinMind-EPS",
+        "TWSE-T86"
+      ],
+      "bull_signals": [
+        "TTM EPS 約 74.39，獲利基底仍在。"
+      ],
+      "risk_flags": [
+        "近 5 日法人偏空，約賣超 12126 張。"
+      ],
+      "summary": "TTM EPS 約 74.39，獲利基底仍在。"
+    },
+    {
+      "ticker": "2454.TW",
+      "code": "2454",
+      "company": "聯發科",
+      "lane_title": "AI / HPC 需求",
+      "role": "高階晶片設計",
+      "focus": "",
+      "thesis": "若高階平台升級加快，對高速封裝與板材規格的要求也會跟著提高。",
+      "industry": "Semiconductors",
+      "profile": "產業: Semiconductors",
+      "close": null,
+      "total_score": null,
+      "tech_score": null,
+      "fund_score": null,
+      "chip_score": null,
+      "priority_score": null,
+      "estimated_win_rate_pct": null,
+      "strategy": null,
+      "is_priority": false,
+      "tags": [],
+      "single_month_revenue": 46736664000.0,
+      "single_month_mom": null,
+      "single_month_yoy": null,
+      "eps_latest_quarter": 15.17,
+      "eps_ttm": 62.910000000000004,
+      "chips_summary": "TWSE-T86：近 5 日三大法人合計賣超 5540 張；取近 10 個交易日",
+      "foreign_5d": -5947.532,
+      "trust_5d": -340.05700000000013,
+      "dealer_5d": 0.0,
+      "total_5d": -5540.356,
+      "sources": [
+        "FinMind-Revenue",
+        "FinMind-EPS",
+        "TWSE-T86"
+      ],
+      "bull_signals": [
+        "TTM EPS 約 62.91，獲利基底仍在。"
+      ],
+      "risk_flags": [
+        "近 5 日法人偏空，約賣超 5540 張。"
+      ],
+      "summary": "TTM EPS 約 62.91，獲利基底仍在。"
+    },
+    {
+      "ticker": "6669.TW",
+      "code": "6669",
+      "company": "緯穎",
+      "lane_title": "AI / HPC 需求",
+      "role": "AI 伺服器",
+      "focus": "",
+      "thesis": "AI 伺服器平台升級與出貨節奏，是題材能否持續外溢的重要觀察點。",
+      "industry": "Computer Hardware",
+      "profile": "產業: Computer Hardware",
+      "close": null,
+      "total_score": null,
+      "tech_score": null,
+      "fund_score": null,
+      "chip_score": null,
+      "priority_score": null,
+      "estimated_win_rate_pct": null,
+      "strategy": null,
+      "is_priority": false,
+      "tags": [],
+      "single_month_revenue": 82730996000.0,
+      "single_month_mom": null,
+      "single_month_yoy": null,
+      "eps_latest_quarter": 75.95,
+      "eps_ttm": 298.31,
+      "chips_summary": "TWSE-T86：近 5 日三大法人合計賣超 161 張；取近 10 個交易日",
+      "foreign_5d": 1.204999999999984,
+      "trust_5d": -292.206,
+      "dealer_5d": 0.0,
+      "total_5d": -160.82399999999998,
+      "sources": [
+        "FinMind-Revenue",
+        "FinMind-EPS",
+        "TWSE-T86"
+      ],
+      "bull_signals": [
+        "TTM EPS 約 298.31，獲利基底仍在。"
+      ],
+      "risk_flags": [
+        "近 5 日法人偏空，約賣超 161 張。"
+      ],
+      "summary": "TTM EPS 約 298.31，獲利基底仍在。"
+    },
+    {
+      "ticker": "3037.TW",
+      "code": "3037",
+      "company": "欣興",
+      "lane_title": "載板廠",
+      "role": "ABF / HDI",
+      "focus": "",
+      "thesis": "若高階 ABF 與 HDI 出貨同步改善，市場最容易先回頭重估這種核心節點。",
+      "industry": "Electronic Components",
+      "profile": "產業: Electronic Components",
+      "close": null,
+      "total_score": null,
+      "tech_score": null,
+      "fund_score": null,
+      "chip_score": null,
+      "priority_score": null,
+      "estimated_win_rate_pct": null,
+      "strategy": null,
+      "is_priority": false,
+      "tags": [],
+      "single_month_revenue": 13932815000.0,
+      "single_month_mom": null,
+      "single_month_yoy": null,
+      "eps_latest_quarter": 3.28,
+      "eps_ttm": 7.06,
+      "chips_summary": "TWSE-T86：近 5 日三大法人合計買超 13141 張；取近 10 個交易日",
+      "foreign_5d": 11530.858999999999,
+      "trust_5d": 1364.943,
+      "dealer_5d": 0.0,
+      "total_5d": 13140.991,
+      "sources": [
+        "FinMind-Revenue",
+        "FinMind-EPS",
+        "TWSE-T86"
+      ],
+      "bull_signals": [
+        "TTM EPS 約 7.06，獲利基底仍在。",
+        "近 5 日法人合計偏多，約買超 13141 張。"
+      ],
+      "risk_flags": [
+        "短線仍要留意題材過熱、估值先跑與訂單遞延風險。"
+      ],
+      "summary": "TTM EPS 約 7.06，獲利基底仍在。"
+    },
+    {
+      "ticker": "3189.TW",
+      "code": "3189",
+      "company": "景碩",
+      "lane_title": "載板廠",
+      "role": "ABF / BT",
+      "focus": "",
+      "thesis": "產品組合與客戶結構變化，會決定估值想像能不能從修復走向成長。",
+      "industry": "Semiconductor Equipment & Materials",
+      "profile": "產業: Semiconductor Equipment & Materials",
+      "close": null,
+      "total_score": null,
+      "tech_score": null,
+      "fund_score": null,
+      "chip_score": null,
+      "priority_score": null,
+      "estimated_win_rate_pct": null,
+      "strategy": null,
+      "is_priority": false,
+      "tags": [],
+      "single_month_revenue": 4072319000.0,
+      "single_month_mom": null,
+      "single_month_yoy": null,
+      "eps_latest_quarter": 1.17,
+      "eps_ttm": 4.07,
+      "chips_summary": "TWSE-T86：近 5 日三大法人合計買超 19604 張；取近 10 個交易日",
+      "foreign_5d": 14913.613999999998,
+      "trust_5d": 4083.474,
+      "dealer_5d": 0.0,
+      "total_5d": 19603.615999999998,
+      "sources": [
+        "FinMind-Revenue",
+        "FinMind-EPS",
+        "TWSE-T86"
+      ],
+      "bull_signals": [
+        "TTM EPS 約 4.07，獲利基底仍在。",
+        "近 5 日法人合計偏多，約買超 19604 張。"
+      ],
+      "risk_flags": [
+        "短線仍要留意題材過熱、估值先跑與訂單遞延風險。"
+      ],
+      "summary": "TTM EPS 約 4.07，獲利基底仍在。"
+    },
+    {
+      "ticker": "8046.TW",
+      "code": "8046",
+      "company": "南電",
+      "lane_title": "載板廠",
+      "role": "ABF / BT",
+      "focus": "",
+      "thesis": "當高階需求回來時，毛利與產品結構彈性是最值得盯的部分。",
+      "industry": "Electronic Components",
+      "profile": "產業: Electronic Components",
+      "close": null,
+      "total_score": null,
+      "tech_score": null,
+      "fund_score": null,
+      "chip_score": null,
+      "priority_score": null,
+      "estimated_win_rate_pct": null,
+      "strategy": null,
+      "is_priority": false,
+      "tags": [],
+      "single_month_revenue": 4450857000.0,
+      "single_month_mom": null,
+      "single_month_yoy": null,
+      "eps_latest_quarter": 2.03,
+      "eps_ttm": 4.720000000000001,
+      "chips_summary": "TWSE-T86：近 5 日三大法人合計賣超 4510 張；取近 10 個交易日",
+      "foreign_5d": -4585.259,
+      "trust_5d": 478.0,
+      "dealer_5d": 0.0,
+      "total_5d": -4509.5599999999995,
+      "sources": [
+        "FinMind-Revenue",
+        "FinMind-EPS",
+        "TWSE-T86"
+      ],
+      "bull_signals": [
+        "TTM EPS 約 4.72，獲利基底仍在。"
+      ],
+      "risk_flags": [
+        "近 5 日法人偏空，約賣超 4510 張。"
+      ],
+      "summary": "TTM EPS 約 4.72，獲利基底仍在。"
+    },
+    {
+      "ticker": "2383.TW",
+      "code": "2383",
+      "company": "台光電",
+      "lane_title": "材料",
+      "role": "CCL / 高速材料",
+      "focus": "",
+      "thesis": "高速材料規格升級時，台光電這種核心供應商通常是第一批受惠者。",
+      "industry": "Electronic Components",
+      "profile": "產業: Electronic Components",
+      "close": null,
+      "total_score": null,
+      "tech_score": null,
+      "fund_score": null,
+      "chip_score": null,
+      "priority_score": null,
+      "estimated_win_rate_pct": null,
+      "strategy": null,
+      "is_priority": false,
+      "tags": [],
+      "single_month_revenue": 13923687000.0,
+      "single_month_mom": null,
+      "single_month_yoy": null,
+      "eps_latest_quarter": 14.9,
+      "eps_ttm": 46.55,
+      "chips_summary": "TWSE-T86：近 5 日三大法人合計買超 1448 張；取近 10 個交易日",
+      "foreign_5d": 1808.3690000000001,
+      "trust_5d": -275.05199999999996,
+      "dealer_5d": 0.0,
+      "total_5d": 1447.903,
+      "sources": [
+        "FinMind-Revenue",
+        "FinMind-EPS",
+        "TWSE-T86"
+      ],
+      "bull_signals": [
+        "TTM EPS 約 46.55，獲利基底仍在。",
+        "近 5 日法人合計偏多，約買超 1448 張。"
+      ],
+      "risk_flags": [
+        "短線仍要留意題材過熱、估值先跑與訂單遞延風險。"
+      ],
+      "summary": "TTM EPS 約 46.55，獲利基底仍在。"
+    },
+    {
+      "ticker": "6274.TW",
+      "code": "6274",
+      "company": "台燿",
+      "lane_title": "材料",
+      "role": "CCL",
+      "focus": "",
+      "thesis": "若高階板材需求同步升高，材料鏈的產品 mix 會先轉強。",
+      "industry": "Electronic Components",
+      "profile": "產業: Electronic Components",
+      "close": null,
+      "total_score": null,
+      "tech_score": null,
+      "fund_score": null,
+      "chip_score": null,
+      "priority_score": null,
+      "estimated_win_rate_pct": null,
+      "strategy": null,
+      "is_priority": false,
+      "tags": [],
+      "single_month_revenue": 4610166000.0,
+      "single_month_mom": null,
+      "single_month_yoy": null,
+      "eps_latest_quarter": 4.36,
+      "eps_ttm": 14.059999999999999,
+      "chips_summary": "FinMind-Chips：近 5 日三大法人合計買超 1222 張",
+      "foreign_5d": 1398.5829999999999,
+      "trust_5d": -6.900000000000006,
+      "dealer_5d": -169.99499999999995,
+      "total_5d": 1221.6879999999999,
+      "sources": [
+        "FinMind-Revenue",
+        "FinMind-EPS",
+        "FinMind-Chips"
+      ],
+      "bull_signals": [
+        "TTM EPS 約 14.06，獲利基底仍在。",
+        "近 5 日法人合計偏多，約買超 1222 張。"
+      ],
+      "risk_flags": [
+        "短線仍要留意題材過熱、估值先跑與訂單遞延風險。"
+      ],
+      "summary": "TTM EPS 約 14.06，獲利基底仍在。"
+    }
+  ],
+  "ai_analysis": {
+    "status": "disabled",
+    "reason": "未設定 OLLAMA_BASE_URL 或 OLLAMA_MODEL，先回傳規則式分析。"
+  }
+}

@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="hero-grid">
+  <div class="hero-copy hero-panel">
+    <p class="eyebrow">Quant + Industry Map</p>
+    <h1>保留 Telegram 的選股邏輯，把結果長成可持續擴充的產業地圖網站。</h1>
+    <p class="hero-text">
+      `quant_pro.py` 掃描、評分、產圖與推播；`quant_web.py` 只讀 `data/latest_ranked_tw.json`、
+      `data/latest_macro_tw.json` 與 `reports/*.png`。這樣 Telegram 和 Web 永遠看同一份最新結果。
+    </p>
+    <div class="action-row">
+      <a class="button button--solid" href="/tw">看台股推薦</a>
+      <a class="button button--soft" href="/industry/ic-substrate?activeTab=ai">看 IC 載板地圖</a>
+    </div>
+  </div>
+
+  <div class="metric-grid">
+    <article class="metric-card">
+      <p class="metric-card__label">Latest Ranked</p>
+      <p class="metric-card__value">{{ ranked.updated_at }}</p>
+      <p class="metric-card__note">目前共有 {{ ranked.rows|length }} 檔可供 Web 查詢。</p>
+    </article>
+    <article class="metric-card">
+      <p class="metric-card__label">Macro Mode</p>
+      <p class="metric-card__value">{{ mode_label(macro.latest_mode) }}</p>
+      <p class="metric-card__note">最新大盤分數 {{ fmt_num(macro.latest_score) }}，指數動能 {{ macro_row.index_ret_display or 'N/A' }}。</p>
+    </article>
+    <article class="metric-card">
+      <p class="metric-card__label">Industry Topics</p>
+      <p class="metric-card__value">{{ topic_cards|length }}</p>
+      <p class="metric-card__note">主題頁可以把最新量化排行疊回供應鏈節點。</p>
+    </article>
+    <article class="metric-card">
+      <p class="metric-card__label">Data Contract</p>
+      <p class="metric-card__value">Single Source</p>
+      <p class="metric-card__note">Web 只讀掃描輸出的共享 JSON，不另抓資料。</p>
+    </article>
+  </div>
+</section>
+
+<section class="section-block">
+  <div class="section-head">
+    <div>
+      <p class="eyebrow">Top Picks</p>
+      <h2>最新台股焦點</h2>
+    </div>
+    <a class="section-link" href="/tw">查看完整排行</a>
+  </div>
+  <div class="card-grid card-grid--three">
+    {% if spotlight_rows %}
+      {% for row in spotlight_rows %}
+      <article class="feature-card">
+        <div class="feature-card__head">
+          <div>
+            <h3>{{ row.ticker }}</h3>
+            <p>{{ row.company }}</p>
+          </div>
+          <span class="badge">{{ fmt_num(row.total_score) }}</span>
+        </div>
+        <p class="feature-card__meta">{{ row.industry or '未分類' }}</p>
+        <p class="feature-card__meta">{{ row.strategy or '綜合策略' }}</p>
+        <div class="tag-row">
+          {% for tag in row.tags[:4] %}
+          <span class="tag">{{ tag }}</span>
+          {% endfor %}
+        </div>
+        <a class="button button--inline" href="/stock/{{ row.ticker }}">個股分析</a>
+      </article>
+      {% endfor %}
+    {% else %}
+      <div class="empty-panel">尚未有最新台股排行資料。先跑一次 `/scan`，首頁就會自動更新。</div>
+    {% endif %}
+  </div>
+</section>
+
+<section class="section-block">
+  <div class="section-head">
+    <div>
+      <p class="eyebrow">Industry Themes</p>
+      <h2>主題地圖入口</h2>
+    </div>
+  </div>
+  <div class="card-grid card-grid--three">
+    {% for topic in topic_cards %}
+    <article class="feature-card">
+      <h3>{{ topic.title }}</h3>
+      <p class="feature-card__meta feature-card__meta--strong">{{ topic.subtitle }}</p>
+      <p>{{ topic.description }}</p>
+      <a class="button button--inline" href="{{ topic.url }}">打開地圖</a>
+    </article>
+    {% endfor %}
+  </div>
+</section>
+{% endblock %}

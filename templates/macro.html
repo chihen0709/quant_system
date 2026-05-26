@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="hero-grid">
+  <div class="hero-copy hero-panel">
+    <p class="eyebrow">Macro Radar</p>
+    <h1>四維大盤雷達</h1>
+    <p class="hero-text">
+      這頁直接讀 `data/latest_macro_tw.json`，圖像讀 `reports/TW_macro_dashboard.png`。
+      大盤模式仍由 `quant_pro.py` 判斷，Web 只做展示與解讀。
+    </p>
+    <div class="pill-row">
+      <span class="pill pill--mode {{ mode_class(macro.latest_mode) }}">{{ mode_label(macro.latest_mode) }}</span>
+      <span class="pill">Score {{ fmt_num(macro.latest_score) }}</span>
+      <span class="pill">Updated {{ macro.updated_at }}</span>
+    </div>
+  </div>
+
+  <div class="media-stack">
+    {% if macro_report %}
+    <div class="media-frame"><img src="/reports/{{ macro_report }}" alt="TW macro dashboard"></div>
+    {% else %}
+    <div class="empty-panel">目前還沒有 TW macro dashboard 圖片。</div>
+    {% endif %}
+  </div>
+</section>
+
+<section class="section-block">
+  <div class="section-head">
+    <div>
+      <p class="eyebrow">Current State</p>
+      <h2>最新維度</h2>
+    </div>
+  </div>
+  {% if latest.fields %}
+  <div class="metric-grid metric-grid--wide">
+    {% for field in latest.fields %}
+    <article class="metric-card">
+      <p class="metric-card__label">{{ field.label }}</p>
+      <p class="metric-card__value">{{ field.display or 'N/A' }}</p>
+      <p class="metric-card__note">score {{ fmt_num(field.score) }}</p>
+    </article>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="empty-panel">目前沒有欄位資料。</div>
+  {% endif %}
+</section>
+
+<section class="section-block">
+  <div class="section-head">
+    <div>
+      <p class="eyebrow">Recent History</p>
+      <h2>最近幾筆</h2>
+    </div>
+  </div>
+  {% if history_rows %}
+  <div class="table-shell">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Label</th>
+          <th>Date</th>
+          <th>Index</th>
+          <th>Score</th>
+          <th>Sentiment</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in history_rows %}
+        <tr>
+          <td>{{ row.label }}</td>
+          <td>{{ row.date }}</td>
+          <td>{{ row.index_ret_display }}</td>
+          <td>{{ fmt_num(row.score) }}</td>
+          <td>{{ row.sentiment }}</td>
+          <td>{{ row.data_status }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty-panel">目前沒有最新 macro JSON。</div>
+  {% endif %}
+</section>
+{% endblock %}

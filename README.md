@@ -61,6 +61,9 @@ TELEGRAM_CHAT_ID=YOUR_CHAT_ID
 TELEGRAM_POLLING_ENABLED=1
 FINMIND_TOKEN=YOUR_FINMIND_TOKEN
 MY_TW_COVERAGE_PATH=/path/to/your/My-TW-Coverage
+CADDY_DOMAIN=stocks.example.com
+OLLAMA_BASE_URL=http://host.docker.internal:11434
+OLLAMA_MODEL=llama3.1:8b
 HTTP_TIMEOUT_SEC=20
 HTTP_RETRIES=3
 HTTP_BACKOFF_SEC=1.5
@@ -131,6 +134,28 @@ Check logs:
 ```bash
 docker logs -f stock_minervini_bot
 ```
+
+Web dashboard:
+
+```bash
+docker compose up -d --build quant_web
+```
+
+Reverse proxy + HTTPS gateway:
+
+```bash
+docker compose up -d --build quant_proxy
+```
+
+Open:
+
+- `http://localhost/`
+- `http://VM_LAN_IP/`
+- `https://YOUR_DOMAIN/` if `CADDY_DOMAIN` has been configured and DNS points to your public IP
+
+If you need phone / company PC / internet access, see [docs/public-access.md](docs/public-access.md).
+
+`CADDY_EMAIL` is optional. Add it only if you want certificate expiry / ACME notices sent to your email.
 
 ### 4. Test Telegram Bot
 
@@ -728,7 +753,7 @@ models/*.pth
 
 ### Low Priority
 
-- [ ] Add web dashboard
+- [x] Add web dashboard
 - [ ] Add backtest report export
 - [ ] Add more chart styles
 - [ ] Add portfolio watchlist mode
